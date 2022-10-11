@@ -56,7 +56,6 @@ pub enum Driver {
     /// The driver is the same either way.
     STR1,
     /// An OMEGA Engineering PID. We use the CN7500, and haven't yet tested on others.
-    // TODO: This needs to be renamed CN7500 to be more specific.
     CN7500,
     // The Waveshare relay board, similar in usage to the STR1
     Waveshare
