@@ -107,22 +107,3 @@ impl Device {
     }
 }
 
-
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-
-//     fn test_device() -> Device {
-//         Device {
-//             driver: Driver::Omega,
-//             name: String::from("Thermometer 1"),
-//             id: String::from("thermometer-1"),
-//             state: State::Off,
-//             addr: 3,
-//             controller_addr: 1,
-//             pv: None,
-//             sv: None
-//         }
-//     }
-// }
