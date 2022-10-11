@@ -12,8 +12,23 @@ serde_yaml = "0.9"
 thiserror = "1.0"
 
 
+[dependencies.warp]
+version = "0.2.5"
+optional = true
+
+[dependencies.tokio]
+version = "0.2.5"
+optional = true
+features = ["full"]
+
+
 [dependencies.brewdrivers]
 version = "0.9.0"
 features = ["network"]
 # default-features = false
 # optional = true
+
+
+[features]
+default = ["web"]
+web = ["warp", "tokio"]

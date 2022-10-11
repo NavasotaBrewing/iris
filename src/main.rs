@@ -1,8 +1,12 @@
 pub mod model;
+#[cfg(feature = "web")]
+pub mod api;
 
 use model::RTU;
 
-fn main() {
-    let rtu = RTU::generate(None).expect("Error generating RTU");
-    println!("{:#?}", rtu);
+#[cfg(feature = "web")]
+#[tokio::main]
+async fn main() {
+    println!("About to start the web server");
+    api::run().await;
 }
