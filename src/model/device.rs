@@ -77,7 +77,8 @@ impl Device {
                     BState::Off => State::Off
                 }
             }
-            Driver::Omega => {
+            // TODO: Rename this to CN7500
+            Driver::CN7500 => {
                 let mut cn7500 = CN7500::new(device.controller_addr, &serial_port, 19200).await.expect("Couldn't connect to CN7500!");
                 match mode {
                     Mode::Write => {

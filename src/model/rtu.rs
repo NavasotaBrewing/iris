@@ -1,4 +1,5 @@
 use std::fs;
+use std::net::Ipv4Addr;
 
 use serde::{Serialize, Deserialize};
 use thiserror::Error;
@@ -23,6 +24,7 @@ pub enum RTUError {
 pub struct RTU {
     pub name: String,
     pub id: String,
+    pub ip_addr: Option<Ipv4Addr>,
     pub devices: Vec<Device>
 }
 
@@ -35,6 +37,7 @@ impl RTU {
 
     /// Reads the configuration file at /etc/NavasotaBrewing/rtu_conf.yaml and builds an RTU from that
     pub fn generate(conf_path: Option<&str>) -> Result<RTU, RTUError> {
+        // TODO: Get IPv4 programatically instead of writing it in the file
         let file_contents = fs::read_to_string(
             conf_path.or(Some(CONF_FILE)).unwrap()
         ).map_err(|err| RTUError::IOError(err) )?;

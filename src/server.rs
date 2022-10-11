@@ -13,7 +13,7 @@ pub async fn run() {
     let running = warp::path("running")
         .map(|| r#"{"running":"true"}"# )
         .with(&cors);
-
+        
     let generate_rtu_route = warp::path("generate")
         .and_then(generate_rtu)
         .with(&cors);
