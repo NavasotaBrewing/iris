@@ -5,19 +5,28 @@ use crate::model::{RTU, Mode};
 
 /// Creates a warp server and runs it
 pub async fn run() {
+    let cors = warp::cors()
+        .allow_any_origin()
+        .allow_methods(vec!["GET", "POST"]);
+
     // Responds to /running with a payload containing true, just for testing
-    let running = warp::path("running").map(|| r#"{"running":"true"}"# );
+    let running = warp::path("running")
+        .map(|| r#"{"running":"true"}"# )
+        .with(&cors);
 
     let generate_rtu_route = warp::path("generate")
-        .and_then(generate_rtu);
+        .and_then(generate_rtu)
+        .with(&cors);
     
     let update_rtu_route = warp::path("update")
         .and(warp::body::json())
-        .and_then(update_rtu);
+        .and_then(update_rtu)
+        .with(&cors);
 
     let enact_rtu_route = warp::path("enact")
         .and(warp::body::json())
-        .and_then(enact_rtu);
+        .and_then(enact_rtu)
+        .with(&cors);
 
     let routes = running
         .or(generate_rtu_route)
