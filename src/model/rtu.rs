@@ -5,6 +5,8 @@ use thiserror::Error;
 
 use super::{Device, Mode};
 
+const CONF_FILE: &'static str = "/etc/NavasotaBrewing/rtu_conf.yaml";
+
 #[derive(Error, Debug)]
 pub enum RTUError {
     #[error("Configuration file not found at /etc/NavasotaBrewing/rtu_conf.yaml")]
@@ -34,7 +36,7 @@ impl RTU {
     /// Reads the configuration file at /etc/NavasotaBrewing/rtu_conf.yaml and builds an RTU from that
     pub fn generate(conf_path: Option<&str>) -> Result<RTU, RTUError> {
         let file_contents = fs::read_to_string(
-            conf_path.or(Some("/etc/NavasotaBrewing/rtu_conf.yaml")).unwrap()
+            conf_path.or(Some(CONF_FILE)).unwrap()
         ).map_err(|err| RTUError::IOError(err) )?;
         serde_yaml::from_str::<RTU>(&file_contents).map_err(|err| RTUError::SerdeParseError(err) )
     }
