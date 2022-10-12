@@ -1,39 +1,73 @@
 use std::convert::Infallible;
 
-use warp::Filter;
-use crate::model::{RTU, Mode};
+use crate::model::{Mode, RTU};
+use warp::{hyper::Method, Filter};
 
 /// Creates a warp server and runs it
 pub async fn run() {
+    let incoming_log = warp::log::custom(|info| {
+        eprintln!();
+        eprintln!("remote addr: {:#?}", info.remote_addr());
+        eprintln!("method: {:#?}", info.method());
+        eprintln!("path: {:#?}", info.path());
+        eprintln!("version: {:#?}", info.version());
+        eprintln!("status: {:#?}", info.status());
+        eprintln!("referer: {:#?}", info.referer());
+        eprintln!("user_agent: {:#?}", info.user_agent());
+        eprintln!("elapsed: {:#?}", info.elapsed());
+        eprintln!("host: {:#?}", info.host());
+        eprintln!("request_headers: {:#?}", info.request_headers());
+    });
+
     let cors = warp::cors()
+        .allow_headers(vec![
+            "host",
+            "user-agent",
+            "accept",
+            "accept-language",
+            "accept-encoding",
+            "content-type",
+            "content-length",
+            "origin",
+            "connection",
+            "referer",
+            "access-control-allow-origin",
+        ])
+        .allow_header("content-type")
         .allow_any_origin()
-        .allow_methods(vec!["GET", "POST"]);
+        .allow_methods(&[Method::POST, Method::GET, Method::OPTIONS]);
+
 
     // Responds to /running with a payload containing true, just for testing
     let running = warp::path("running")
-        .map(|| r#"{"running":"true"}"# )
+        .map(|| r#"{"running":"true"}"#)
+        .with(&incoming_log)
         .with(&cors);
-        
+
     let generate_rtu_route = warp::path("generate")
         .and_then(generate_rtu)
+        .with(&incoming_log)
         .with(&cors);
-    
+
     let update_rtu_route = warp::path("update")
         .and(warp::body::json())
         .and_then(update_rtu)
+        .with(&incoming_log)
         .with(&cors);
 
     let enact_rtu_route = warp::path("enact")
         .and(warp::body::json())
         .and_then(enact_rtu)
-        .with(&cors);
+        .with(&incoming_log);
 
     let routes = running
         .or(generate_rtu_route)
         .or(update_rtu_route)
         .or(enact_rtu_route);
-    warp::serve(routes).run(([0,0,0,0], 3012)).await;
+
+    warp::serve(routes).run(([0, 0, 0, 0], 3012)).await;
 }
+
 
 /// Receives the RTU model and updates the hardware to match, aka Write mode
 async fn enact_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
@@ -46,7 +80,8 @@ async fn enact_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
 async fn update_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
     println!("RTU recieved model, updating and sending it back");
     let updated = RTU::update(&mut rtu, &Mode::Read).await;
-    Ok(serde_json::to_string(&updated).expect("Couldn't serialize model"))
+    // Ok(serde_json::to_string(&updated).expect("Couldn't serialize model"))
+    Ok(format!("testing string"))
 }
 
 /// Generates the RTU model from the configuration file
