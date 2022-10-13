@@ -20,22 +20,9 @@ pub async fn run() {
     });
 
     let cors = warp::cors()
-        .allow_headers(vec![
-            "host",
-            "user-agent",
-            "accept",
-            "accept-language",
-            "accept-encoding",
-            "content-type",
-            "content-length",
-            "origin",
-            "connection",
-            "referer",
-            "access-control-allow-origin",
-        ])
-        .allow_header("content-type")
         .allow_any_origin()
-        .allow_methods(&[Method::POST, Method::GET, Method::OPTIONS]);
+        .allow_headers(vec!["Access-Control-Allow-Origin", "Origin", "Accept", "X-Requested-With", "Content-Type"])
+        .allow_methods(&[Method::GET, Method::POST]);
 
 
     // Responds to /running with a payload containing true, just for testing
@@ -58,7 +45,8 @@ pub async fn run() {
     let enact_rtu_route = warp::path("enact")
         .and(warp::body::json())
         .and_then(enact_rtu)
-        .with(&incoming_log);
+        .with(&incoming_log)
+        .with(&cors);
 
     let routes = running
         .or(generate_rtu_route)
@@ -72,16 +60,28 @@ pub async fn run() {
 /// Receives the RTU model and updates the hardware to match, aka Write mode
 async fn enact_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
     println!("RTU recieved model, enacting changes");
-    let updated = RTU::update(&mut rtu, &Mode::Write).await;
-    Ok(serde_json::to_string(&updated).expect("Couldn't serialize model"))
+    RTU::update(&mut rtu, &Mode::Write).await;
+    // It's VERY important to set that header
+    Ok(
+        warp::reply::with_header(
+            serde_json::to_string(&rtu).expect("Couldn't serialize model"),
+            "Access-Control-Allow-Origin",
+            "*"
+        )
+    )
 }
 
 /// Receives the RTU model and updates it to match the hardware, aka Read mode
 async fn update_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
     println!("RTU recieved model, updating and sending it back");
-    let updated = RTU::update(&mut rtu, &Mode::Read).await;
-    // Ok(serde_json::to_string(&updated).expect("Couldn't serialize model"))
-    Ok(format!("testing string"))
+    RTU::update(&mut rtu, &Mode::Read).await;
+    // Ok(serde_json::to_string(&rtu).expect("Couldn't serialize model"))
+    Ok(
+        warp::reply::with_header(
+            serde_json::to_string(&rtu).expect("Couldn't serialize model"),
+            "Access-Control-Allow-Origin", "*"
+        )
+    )
 }
 
 /// Generates the RTU model from the configuration file

@@ -6,6 +6,7 @@ use super::{Driver, State, Mode};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Device {
     pub driver: Driver,
+    pub port: String,
     pub name: String,
     pub id: String,
     pub state: State,
@@ -23,7 +24,6 @@ impl Device {
     /// are added. I'd like to extract this to a trait within `brewdrivers` so
     /// I don't have to expand this when I write a new driver.
     pub async fn update(device: &mut Device, mode: &Mode) {
-        let serial_port = std::env::var("BREWDRIVERS_PORT").unwrap_or("/dev/ttyAMA0".to_owned());
         use brewdrivers::{
             omega::CN7500,
             relays::STR1,
@@ -37,7 +37,7 @@ impl Device {
             Driver::STR1 => {
                 // TODO: make an override for the port with an environment variable or file or something
                 // We want to panic! here. This will be run by rocket, so if it panics it will just fail with a message
-                let mut board = STR1::connect(device.controller_addr, &serial_port).expect("Couldn't connect to STR1!");
+                let mut board = STR1::connect(device.controller_addr, &device.port).expect("Couldn't connect to STR1!");
                 match mode {
                     Mode::Write => {
                         let new_state = match device.state {
@@ -59,7 +59,7 @@ impl Device {
                 }
             },
             Driver::Waveshare => {
-                let mut board = Waveshare::connect(device.controller_addr, &serial_port).expect("Couldn't connect to the Waveshare board!");
+                let mut board = Waveshare::connect(device.controller_addr, &device.port).expect("Couldn't connect to the Waveshare board!");
                 match mode {
                     Mode::Write => {
                         let new_state = match device.state {
@@ -78,7 +78,7 @@ impl Device {
                 }
             }
             Driver::CN7500 => {
-                let mut cn7500 = CN7500::new(device.controller_addr, &serial_port, 19200).await.expect("Couldn't connect to CN7500!");
+                let mut cn7500 = CN7500::new(device.controller_addr, &device.port, 19200).await.expect("Couldn't connect to CN7500!");
                 match mode {
                     Mode::Write => {
                         cn7500.set_sv(device.sv.unwrap()).await.expect("Couldn't set SV on CN7500");
