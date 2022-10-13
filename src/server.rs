@@ -6,7 +6,7 @@ use warp::{hyper::Method, Filter};
 /// Creates a warp server and runs it
 pub async fn run() {
     let incoming_log = warp::log::custom(|info| {
-        eprintln!();
+        eprintln!("=== New Request ===");
         eprintln!("remote addr: {:#?}", info.remote_addr());
         eprintln!("method: {:#?}", info.method());
         eprintln!("path: {:#?}", info.path());
@@ -52,6 +52,10 @@ pub async fn run() {
         .or(generate_rtu_route)
         .or(update_rtu_route)
         .or(enact_rtu_route);
+
+    // IDEA: Read the RTU config file on load so that serialization errors will be
+    // shown at server startup instead of on a route. The route can return the same thing
+    // it does now.
 
     warp::serve(routes).run(([0, 0, 0, 0], 3012)).await;
 }
