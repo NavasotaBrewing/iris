@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, fmt::Display};
 
 use serde::{Serialize, Deserialize};
 
@@ -61,6 +61,11 @@ pub enum Driver {
     Waveshare
 }
 
+impl Display for Driver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 
 #[cfg(test)]
