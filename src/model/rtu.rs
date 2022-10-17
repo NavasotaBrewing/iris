@@ -1,6 +1,7 @@
 use std::fs;
 use std::net::Ipv4Addr;
 
+use brewdrivers::drivers::InstrumentError;
 use serde::{Serialize, Deserialize};
 use thiserror::Error;
 
@@ -29,10 +30,11 @@ pub struct RTU {
 }
 
 impl RTU {
-    pub async fn update(rtu: &mut RTU, mode: &Mode) {
-        for mut device in &mut rtu.devices {
-            Device::update(&mut device, &mode).await.unwrap();
+    pub async fn update(rtu: &mut RTU, mode: &Mode) -> Result<(), InstrumentError> {
+        for device in &mut rtu.devices {
+            device.update(&mode).await?
         }
+        Ok(())
     }
 
     /// Reads the configuration file at /etc/NavasotaBrewing/rtu_conf.yaml and builds an RTU from that

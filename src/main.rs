@@ -9,6 +9,6 @@ pub mod server;
 #[cfg(feature = "web")]
 #[tokio::main]
 async fn main() {
-    println!("About to start the web server");
+    println!("Starting RTU server");
     server::run().await;
 }

@@ -20,28 +20,23 @@ pub struct Device {
 }
 
 impl Device {
-    /// Updates either the device state or the Model state,
-    /// depending on the Mode.
-    pub async fn update(mut device: &mut Device, mode: &Mode) -> Result<(), InstrumentError> {
-        match device.controller {
+    pub async fn update(&mut self, mode: &Mode) -> Result<(), InstrumentError> {
+        match self.controller {
             Controller::STR1 => {
-                Self::handle_relay_board_update(
-                    &mut STR1::connect(device.controller_addr, &device.port)?,
-                    &mut device,
+                self.handle_relay_board_update(
+                    &mut STR1::connect(self.controller_addr, &self.port)?,
                     &mode,
                 )
             }
             Controller::Waveshare => {
-                Self::handle_relay_board_update(
-                    &mut Waveshare::connect(device.controller_addr, &device.port)?,
-                    &mut device,
+                self.handle_relay_board_update(
+                    &mut Waveshare::connect(self.controller_addr, &self.port)?,
                     &mode
                 )
             }
             Controller::CN7500 => {
-                Self::handle_pid_update(
-                    &mut CN7500::connect(device.controller_addr, &device.port).await?, 
-                    &mut device,
+                self.handle_pid_update(
+                    &mut CN7500::connect(self.controller_addr, &self.port).await?, 
                     &mode 
                 ).await
             }
@@ -49,58 +44,57 @@ impl Device {
     }
 
     async fn handle_pid_update<T: PID<T>>(
+        &mut self,
         controller: &mut T,
-        device: &mut Device,
         mode: &Mode
     ) -> Result<(), InstrumentError> {
 
         if let Mode::Write = mode {
-            // TODO: Handle None case
-            if let Some(new_sv) = device.sv {
+            if let Some(new_sv) = self.sv {
                 controller.set_sv(new_sv).await?;
             }
 
-            match device.state {
+            match self.state {
                 AnyState::BinaryState(BinaryState::On) => controller.run().await?,
                 AnyState::BinaryState(BinaryState::Off) => controller.stop().await?,
-                AnyState::SteppedState(_) => return Err(InstrumentError::StateError(device.state))
+                AnyState::SteppedState(_) => return Err(InstrumentError::StateError(self.state))
             };
         }
 
         // Read|Update
-        device.pv = Some(controller.get_pv().await?);
-        device.sv = Some(controller.get_sv().await?);
+        self.pv = Some(controller.get_pv().await?);
+        self.sv = Some(controller.get_sv().await?);
 
         // Cargo won't let me implement from<bool> and from<str> at the same time :(
         let new_state = match controller.is_running().await? {
             true => BinaryState::On,
             false => BinaryState::Off
         };
-        device.state = AnyState::BinaryState(new_state);
+        self.state = AnyState::BinaryState(new_state);
 
         Ok(())
     }
 
     fn handle_relay_board_update<C: RelayBoard<C>>(
+        &mut self,
         controller: &mut C,
-        device: &mut Device,
         mode: &Mode,
     ) -> Result<(), InstrumentError> {
 
         if let Mode::Write = mode {
-            match device.state {
-                AnyState::BinaryState(new_state) => controller.set_relay(device.addr, new_state)?,
+            match self.state {
+                AnyState::BinaryState(new_state) => controller.set_relay(self.addr, new_state)?,
                 _ => {
                     return Err(
                         InstrumentError::serialError(
-                            format!("State type is incorrect, this device uses a binary state 0 or 1, found `{:?}`", device.state), Some(device.addr)
+                            format!("State type is incorrect, this device uses a binary state 'On' or 'Off', found `{:?}`", self.state), Some(self.addr)
                         )
                     )
                 }
             }
         }
 
-        device.state = AnyState::BinaryState(controller.get_relay(device.addr)?);
+        self.state = AnyState::BinaryState(controller.get_relay(self.addr)?);
         Ok(())
     }
 }

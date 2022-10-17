@@ -63,34 +63,58 @@ pub async fn run() {
 
 /// Receives the RTU model and updates the hardware to match, aka Write mode
 async fn enact_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
+    // TODO: this shouldn't be infallible, return an error
     println!("RTU recieved model, enacting changes");
-    RTU::update(&mut rtu, &Mode::Write).await;
+    match RTU::update(&mut rtu, &Mode::Write).await {
+        Ok(_) => {
+            Ok(
+                warp::reply::with_header(
+                    serde_json::to_string(&rtu).expect("Couldn't serialize model"),
+                    "Access-Control-Allow-Origin",
+                    "*"
+                )
+            )
+        },
+        Err(e) => {
+            Ok(
+                warp::reply::with_header(
+                    format!("Error when updating RTU: {}", e),
+                    "Access-Control-Allow-Origin",
+                    "*"
+                )
+            )
+        }
+    }
     // It's VERY important to set that header
-    Ok(
-        warp::reply::with_header(
-            serde_json::to_string(&rtu).expect("Couldn't serialize model"),
-            "Access-Control-Allow-Origin",
-            "*"
-        )
-    )
 }
 
 /// Receives the RTU model and updates it to match the hardware, aka Read mode
 async fn update_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
+    // TODO: this shouldn't be infallible, return an error
     println!("RTU recieved model, updating and sending it back");
-    RTU::update(&mut rtu, &Mode::Read).await;
-    // Ok(serde_json::to_string(&rtu).expect("Couldn't serialize model"))
-    Ok(
-        warp::reply::with_header(
-            serde_json::to_string(&rtu).expect("Couldn't serialize model"),
-            "Access-Control-Allow-Origin", "*"
-        )
-    )
+    match RTU::update(&mut rtu, &Mode::Read).await {
+        Ok(_) => {
+            Ok(
+                warp::reply::with_header(
+                    serde_json::to_string(&rtu).expect("Couldn't serialize model"),
+                    "Access-Control-Allow-Origin", "*"
+                )
+            )
+        },
+        Err(e) => {
+            Ok(
+                warp::reply::with_header(
+                    format!("Error when updating RTU: {}", e),
+                    "Access-Control-Allow-Origin",
+                    "*"
+                )
+            )
+        }
+    }
 }
 
 /// Generates the RTU model from the configuration file
 async fn generate_rtu() -> Result<impl warp::Reply, Infallible> {
-    println!("Got a ping, generating RTU model");
     let rtu = RTU::generate(None).expect("Couldn't generate RTU from configuration file");
     Ok(serde_json::to_string(&rtu).expect("Couldn't serialize rtu"))
 }
