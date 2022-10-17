@@ -1,109 +1,106 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use super::{Driver, State, Mode};
+use super::Mode;
 
+use brewdrivers::controllers::RelayBoard;
+use brewdrivers::controllers::*;
+use brewdrivers::drivers::InstrumentError;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Device {
-    pub driver: Driver,
-    pub port: String,
-    pub name: String,
     pub id: String,
-    pub state: State,
+    pub name: String,
+    pub port: String,
     pub addr: u8,
+    pub controller: Controller,
     pub controller_addr: u8,
+    pub state: AnyState,
     pub pv: Option<f64>,
     pub sv: Option<f64>,
 }
 
 impl Device {
-    /// Updates either the device state or the Model state, 
+    /// Updates either the device state or the Model state,
     /// depending on the Mode.
-    ///
-    /// This is one of the things that needs to be updated when new drivers
-    /// are added. I'd like to extract this to a trait within `brewdrivers` so
-    /// I don't have to expand this when I write a new driver.
-    pub async fn update(device: &mut Device, mode: &Mode) {
-        use brewdrivers::{
-            omega::CN7500,
-            relays::STR1,
-            relays::Waveshare
-        };
-        // This is a little bit fucked. I'm maintaining two different states becauese
-        // it'll save time and space later.
-        use brewdrivers::relays::State as BState;
-        
-        match device.driver {
-            Driver::STR1 => {
-                // TODO: make an override for the port with an environment variable or file or something
-                // We want to panic! here. This will be run by rocket, so if it panics it will just fail with a message
-                let mut board = STR1::connect(device.controller_addr, &device.port).expect("Couldn't connect to STR1!");
-                match mode {
-                    Mode::Write => {
-                        let new_state = match device.state {
-                            State::On => BState::On,
-                            State::Off => BState::Off
-                        };
-                        // why not board.set_relay(..., device.state)?? I'm confused
-                        board.set_relay(device.addr, new_state).expect("Couldn't set relay");
-                    },
-                    Mode::Read => {
-                        // Don't do anything here, we always read new state
-                    }
-                }
-                // Read|Update
-                // TODO: handle the result here
-                device.state = match board.get_relay(device.addr).unwrap() {
-                    BState::On => State::On,
-                    BState::Off => State::Off
-                }
-            },
-            Driver::Waveshare => {
-                let mut board = Waveshare::connect(device.controller_addr, &device.port).expect("Couldn't connect to the Waveshare board!");
-                match mode {
-                    Mode::Write => {
-                        let new_state = match device.state {
-                            State::On => BState::On,
-                            State::Off => BState::Off
-                        };
-                        board.set_relay(device.addr, new_state).expect("Couldn't set relay");
-
-                    },
-                    Mode::Read => {}
-                }
-
-                device.state = match board.get_relay(device.addr).unwrap() {
-                    BState::On => State::On,
-                    BState::Off => State::Off
-                }
+    pub async fn update(mut device: &mut Device, mode: &Mode) -> Result<(), InstrumentError> {
+        match device.controller {
+            Controller::STR1 => {
+                Self::handle_relay_board_update(
+                    &mut STR1::connect(device.controller_addr, &device.port)?,
+                    &mut device,
+                    &mode,
+                )
             }
-            Driver::CN7500 => {
-                let mut cn7500 = CN7500::new(device.controller_addr, &device.port, 19200).await.expect("Couldn't connect to CN7500!");
-                match mode {
-                    Mode::Write => {
-                        cn7500.set_sv(device.sv.unwrap()).await.expect("Couldn't set SV on CN7500");
-                        match device.state {
-                            State::On => cn7500.run().await.expect("Couldn't start CN7500"),
-                            State::Off => cn7500.stop().await.expect("Couldn't stop CN7500"),
-                        };
-                    },
-                    Mode::Read => {
-                        // Don't do anything here, we always read new state
-                    }
-                }
+            Controller::Waveshare => {
+                Self::handle_relay_board_update(
+                    &mut Waveshare::connect(device.controller_addr, &device.port)?,
+                    &mut device,
+                    &mode
+                )
+            }
+            Controller::CN7500 => {
+                Self::handle_pid_update(
+                    &mut CN7500::connect(device.controller_addr, &device.port).await?, 
+                    &mut device,
+                    &mode 
+                ).await
+            }
+        }
+    }
 
-                // Read|Update
-                device.pv = cn7500.get_pv().await.ok();
-                device.sv = cn7500.get_sv().await.ok();
-                // Again, we're ok with panic!ing here.
-                if cn7500.is_running().await.expect("Couldn't communicate with CN7500!") {
-                    device.state = State::On;
-                } else {
-                    device.state = State::Off;
+    async fn handle_pid_update<T: PID<T>>(
+        controller: &mut T,
+        device: &mut Device,
+        mode: &Mode
+    ) -> Result<(), InstrumentError> {
+
+        if let Mode::Write = mode {
+            // TODO: Handle None case
+            if let Some(new_sv) = device.sv {
+                controller.set_sv(new_sv).await?;
+            }
+
+            match device.state {
+                AnyState::BinaryState(BinaryState::On) => controller.run().await?,
+                AnyState::BinaryState(BinaryState::Off) => controller.stop().await?,
+                AnyState::SteppedState(_) => return Err(InstrumentError::StateError(device.state))
+            };
+        }
+
+        // Read|Update
+        device.pv = Some(controller.get_pv().await?);
+        device.sv = Some(controller.get_sv().await?);
+
+        // Cargo won't let me implement from<bool> and from<str> at the same time :(
+        let new_state = match controller.is_running().await? {
+            true => BinaryState::On,
+            false => BinaryState::Off
+        };
+        device.state = AnyState::BinaryState(new_state);
+
+        Ok(())
+    }
+
+    fn handle_relay_board_update<C: RelayBoard<C>>(
+        controller: &mut C,
+        device: &mut Device,
+        mode: &Mode,
+    ) -> Result<(), InstrumentError> {
+
+        if let Mode::Write = mode {
+            match device.state {
+                AnyState::BinaryState(new_state) => controller.set_relay(device.addr, new_state)?,
+                _ => {
+                    return Err(
+                        InstrumentError::serialError(
+                            format!("State type is incorrect, this device uses a binary state 0 or 1, found `{:?}`", device.state), Some(device.addr)
+                        )
+                    )
                 }
             }
         }
 
+        device.state = AnyState::BinaryState(controller.get_relay(device.addr)?);
+        Ok(())
     }
 }
-

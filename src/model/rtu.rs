@@ -31,7 +31,7 @@ pub struct RTU {
 impl RTU {
     pub async fn update(rtu: &mut RTU, mode: &Mode) {
         for mut device in &mut rtu.devices {
-            Device::update(&mut device, &mode).await;
+            Device::update(&mut device, &mode).await.unwrap();
         }
     }
 
