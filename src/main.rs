@@ -1,5 +1,8 @@
 pub mod model;
 
+pub const CONFIG_FILE: &'static str = "/etc/NavasotaBrewing/rtu_conf.yaml";
+
+
 // Only compile that module if we want the web server
 // This is good for the CLI because we can use the RTU generation
 // code without compiling warp and tokio

@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 
-use crate::model::{Mode, RTU};
+use crate::model::RTU;
 use warp::{hyper::Method, Filter};
 
 /// Creates a warp server and runs it
@@ -53,9 +53,25 @@ pub async fn run() {
         .or(update_rtu_route)
         .or(enact_rtu_route);
 
-    // IDEA: Read the RTU config file on load so that serialization errors will be
-    // shown at server startup instead of on a route. The route can return the same thing
-    // it does now.
+    // if they provide a command line argument, use it as the config file
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() > 1 {
+        println!("Attempting to use {:?} as config file", args.get(1));
+    }
+
+    match RTU::generate(args.get(1).map(|v| v.as_str() )) {
+        Ok(rtu) => {
+            println!("RTU configuration from {} serialized successfully", crate::CONFIG_FILE);
+            println!("{} device(s) configured", rtu.devices.len());
+        },
+        Err(e) => {
+            eprintln!("Error: RTU configuration couldn't not be deserialized");
+            eprintln!("Error: {}", e);
+            eprintln!("Aborting");
+            std::process::exit(1);
+        }
+    }
 
     warp::serve(routes).run(([0, 0, 0, 0], 3012)).await;
 }
@@ -65,7 +81,7 @@ pub async fn run() {
 async fn enact_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
     // TODO: this shouldn't be infallible, return an error
     println!("RTU recieved model, enacting changes");
-    match RTU::update(&mut rtu, &Mode::Write).await {
+    match RTU::enact(&mut rtu).await {
         Ok(_) => {
             Ok(
                 warp::reply::with_header(
@@ -92,7 +108,7 @@ async fn enact_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
 async fn update_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
     // TODO: this shouldn't be infallible, return an error
     println!("RTU recieved model, updating and sending it back");
-    match RTU::update(&mut rtu, &Mode::Read).await {
+    match RTU::update(&mut rtu).await {
         Ok(_) => {
             Ok(
                 warp::reply::with_header(
@@ -115,6 +131,7 @@ async fn update_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
 
 /// Generates the RTU model from the configuration file
 async fn generate_rtu() -> Result<impl warp::Reply, Infallible> {
-    let rtu = RTU::generate(None).expect("Couldn't generate RTU from configuration file");
+    let args: Vec<String> = std::env::args().collect();
+    let rtu = RTU::generate(args.get(1).map(|v| v.as_str() )).expect("Couldn't generate RTU from configuration file");
     Ok(serde_json::to_string(&rtu).expect("Couldn't serialize rtu"))
 }

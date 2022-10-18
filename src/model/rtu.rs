@@ -1,13 +1,12 @@
 use std::fs;
 use std::net::Ipv4Addr;
 
-use brewdrivers::drivers::InstrumentError;
 use serde::{Serialize, Deserialize};
 use thiserror::Error;
 
-use super::{Device, Mode};
+use brewdrivers::drivers::InstrumentError;
 
-const CONF_FILE: &'static str = "/etc/NavasotaBrewing/rtu_conf.yaml";
+use super::Device;
 
 #[derive(Error, Debug)]
 pub enum RTUError {
@@ -30,9 +29,16 @@ pub struct RTU {
 }
 
 impl RTU {
-    pub async fn update(rtu: &mut RTU, mode: &Mode) -> Result<(), InstrumentError> {
-        for device in &mut rtu.devices {
-            device.update(&mode).await?
+    pub async fn enact(rtu: &mut RTU) -> Result<(), InstrumentError> {
+        for dev in rtu.devices.iter_mut() {
+            dev.enact().await?;
+        }
+        Ok(())
+    }
+
+    pub async fn update(rtu: &mut RTU) -> Result<(), InstrumentError> {
+        for dev in rtu.devices.iter_mut() {
+            dev.update().await?;
         }
         Ok(())
     }
@@ -41,7 +47,7 @@ impl RTU {
     pub fn generate(conf_path: Option<&str>) -> Result<RTU, RTUError> {
         // TODO: Get IPv4 programatically instead of writing it in the file
         let file_contents = fs::read_to_string(
-            conf_path.or(Some(CONF_FILE)).unwrap()
+            conf_path.or(Some(crate::CONFIG_FILE)).unwrap()
         ).map_err(|err| RTUError::IOError(err) )?;
         serde_yaml::from_str::<RTU>(&file_contents).map_err(|err| RTUError::SerdeParseError(err) )
     }
