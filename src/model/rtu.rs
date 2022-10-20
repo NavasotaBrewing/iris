@@ -45,9 +45,11 @@ impl RTU {
 
     /// Reads the configuration file at /etc/NavasotaBrewing/rtu_conf.yaml and builds an RTU from that
     pub fn generate(conf_path: Option<&str>) -> Result<RTU, RTUError> {
+        let file_path = conf_path.or(Some(crate::CONFIG_FILE));
         // TODO: Get IPv4 programatically instead of writing it in the file
         let file_contents = fs::read_to_string(
-            conf_path.or(Some(crate::CONFIG_FILE)).unwrap()
+            // this is safe
+            file_path.unwrap()
         ).map_err(|err| RTUError::IOError(err) )?;
         serde_yaml::from_str::<RTU>(&file_contents).map_err(|err| RTUError::SerdeParseError(err) )
     }

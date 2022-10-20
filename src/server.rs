@@ -1,3 +1,4 @@
+use log::{error, info, trace};
 use std::convert::Infallible;
 
 use crate::model::RTU;
@@ -6,24 +7,30 @@ use warp::{hyper::Method, Filter};
 /// Creates a warp server and runs it
 pub async fn run() {
     let incoming_log = warp::log::custom(|info| {
-        eprintln!("=== New Request ===");
-        eprintln!("remote addr: {:#?}", info.remote_addr());
-        eprintln!("method: {:#?}", info.method());
-        eprintln!("path: {:#?}", info.path());
-        eprintln!("version: {:#?}", info.version());
-        eprintln!("status: {:#?}", info.status());
-        eprintln!("referer: {:#?}", info.referer());
-        eprintln!("user_agent: {:#?}", info.user_agent());
-        eprintln!("elapsed: {:#?}", info.elapsed());
-        eprintln!("host: {:#?}", info.host());
-        eprintln!("request_headers: {:#?}", info.request_headers());
+        info!("");
+        info!("=== New Request ===");
+        info!("remote addr: {:?}", info.remote_addr());
+        info!("method: {:?}", info.method());
+        info!("path: {:?}", info.path());
+        // info!("version: {:#?}", info.version());
+        info!("status: {:?}", info.status());
+        // info!("referer: {:#?}", info.referer());
+        // info!("user_agent: {:#?}", info.user_agent());
+        // info!("elapsed: {:#?}", info.elapsed());
+        info!("host: {:?}", info.host());
+        // info!("request_headers: {:#?}", info.request_headers());
     });
 
     let cors = warp::cors()
         .allow_any_origin()
-        .allow_headers(vec!["Access-Control-Allow-Origin", "Origin", "Accept", "X-Requested-With", "Content-Type"])
-        .allow_methods(&[Method::GET, Method::POST]);
-
+        .allow_headers(vec![
+            "Access-Control-Allow-Origin",
+            "Origin",
+            "Accept",
+            "X-Requested-With",
+            "Content-Type",
+        ])
+        .allow_methods(&[Method::GET, Method::POST, Method::OPTIONS]);
 
     // Responds to /running with a payload containing true, just for testing
     let running = warp::path("running")
@@ -57,18 +64,26 @@ pub async fn run() {
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() > 1 {
-        println!("Attempting to use {:?} as config file", args.get(1));
+        info!(
+            "Attempting to use `{}` as config file",
+            args.get(1).unwrap()
+        );
+    } else {
+        info!(
+            "You didn't provide a config file, I'm going to use `{}` as a default",
+            crate::CONFIG_FILE
+        );
     }
 
-    match RTU::generate(args.get(1).map(|v| v.as_str() )) {
+    match RTU::generate(args.get(1).map(|v| v.as_str())) {
         Ok(rtu) => {
-            println!("RTU configuration from {} serialized successfully", crate::CONFIG_FILE);
-            println!("{} device(s) configured", rtu.devices.len());
-        },
+            info!("RTU configuration serialized successfully");
+            info!("{} device(s) configured", rtu.devices.len());
+        }
         Err(e) => {
-            eprintln!("Error: RTU configuration couldn't not be deserialized");
-            eprintln!("Error: {}", e);
-            eprintln!("Aborting");
+            error!("Error: RTU configuration couldn't not be deserialized");
+            error!("Error: {}", e);
+            error!("Aborting. Fix your configuration file.");
             std::process::exit(1);
         }
     }
@@ -76,62 +91,60 @@ pub async fn run() {
     warp::serve(routes).run(([0, 0, 0, 0], 3012)).await;
 }
 
-
 /// Receives the RTU model and updates the hardware to match, aka Write mode
 async fn enact_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
     // TODO: this shouldn't be infallible, return an error
-    println!("RTU recieved model, enacting changes");
-    match RTU::enact(&mut rtu).await {
-        Ok(_) => {
-            Ok(
-                warp::reply::with_header(
-                    serde_json::to_string(&rtu).expect("Couldn't serialize model"),
-                    "Access-Control-Allow-Origin",
-                    "*"
-                )
-            )
-        },
-        Err(e) => {
-            Ok(
-                warp::reply::with_header(
-                    format!("Error when updating RTU: {}", e),
-                    "Access-Control-Allow-Origin",
-                    "*"
-                )
-            )
-        }
-    }
+    trace!("RTU recieved payload, enacting changes");
     // It's VERY important to set that header
+    match RTU::enact(&mut rtu).await {
+        Ok(_) => Ok(warp::reply::with_header(
+            serde_json::to_string(&rtu).expect("Couldn't serialize model"),
+            "Access-Control-Allow-Origin",
+            "*",
+        )),
+        Err(e) => Ok(warp::reply::with_header(
+            format!("Error when updating RTU: {}", e),
+            "Access-Control-Allow-Origin",
+            "*",
+        )),
+    }
 }
 
 /// Receives the RTU model and updates it to match the hardware, aka Read mode
 async fn update_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
     // TODO: this shouldn't be infallible, return an error
-    println!("RTU recieved model, updating and sending it back");
+    trace!("RTU recieved payload, updating and sending it back");
     match RTU::update(&mut rtu).await {
-        Ok(_) => {
-            Ok(
-                warp::reply::with_header(
-                    serde_json::to_string(&rtu).expect("Couldn't serialize model"),
-                    "Access-Control-Allow-Origin", "*"
-                )
-            )
-        },
-        Err(e) => {
-            Ok(
-                warp::reply::with_header(
-                    format!("Error when updating RTU: {}", e),
-                    "Access-Control-Allow-Origin",
-                    "*"
-                )
-            )
-        }
+        Ok(_) => Ok(warp::reply::with_header(
+            serde_json::to_string(&rtu).expect("Couldn't serialize model"),
+            "Access-Control-Allow-Origin",
+            "*",
+        )),
+        Err(e) => Ok(warp::reply::with_header(
+            format!("Error when updating RTU: {}", e),
+            "Access-Control-Allow-Origin",
+            "*",
+        )),
     }
 }
 
 /// Generates the RTU model from the configuration file
 async fn generate_rtu() -> Result<impl warp::Reply, Infallible> {
     let args: Vec<String> = std::env::args().collect();
-    let rtu = RTU::generate(args.get(1).map(|v| v.as_str() )).expect("Couldn't generate RTU from configuration file");
-    Ok(serde_json::to_string(&rtu).expect("Couldn't serialize rtu"))
+    
+    let rtu = match RTU::generate(args.get(1).map(|v| v.as_str())) {
+        Ok(rtu) => rtu,
+        Err(e) => {
+            error!("Couldn't generate RTU from config file: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    match serde_json::to_string(&rtu) {
+        Ok(rtu) => Ok(rtu),
+        Err(e) => {
+            error!("Couldn't serialize RTU: {}", e);
+            std::process::exit(1);
+        }
+    }
 }
