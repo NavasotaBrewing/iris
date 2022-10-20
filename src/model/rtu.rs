@@ -18,13 +18,17 @@ pub enum RTUError {
     PermissionError,
     #[error("Serde parse error: {0}")]
     SerdeParseError(serde_yaml::Error),
+    #[error("Duplicate ID found: {0}")]
+    DuplicateID(String),
+    #[error("Invalid value for key `{key}`: found `{value}`")]
+    InvalidValue { key: String, value: String }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct RTU {
     pub name: String,
     pub id: String,
-    pub ip_addr: Option<Ipv4Addr>,
+    pub ip_addr: Ipv4Addr,
     pub devices: Vec<Device>
 }
 
@@ -43,14 +47,45 @@ impl RTU {
         Ok(())
     }
 
-    /// Reads the configuration file at /etc/NavasotaBrewing/rtu_conf.yaml and builds an RTU from that
+    /// Reads the configuration file and builds an RTU from that
     pub fn generate(conf_path: Option<&str>) -> Result<RTU, RTUError> {
         let file_path = conf_path.or(Some(crate::CONFIG_FILE));
-        // TODO: Get IPv4 programatically instead of writing it in the file
+        
+        // TODO: Get IPv4 here programatically instead of writing it in the file
+
+        // Get the contents of the config file
         let file_contents = fs::read_to_string(
             // this is safe
             file_path.unwrap()
         ).map_err(|err| RTUError::IOError(err) )?;
-        serde_yaml::from_str::<RTU>(&file_contents).map_err(|err| RTUError::SerdeParseError(err) )
+        
+        // Serialize the file. Return an Err is it doesn't succeed
+        let rtu = serde_yaml::from_str::<RTU>(&file_contents).map_err(|err| RTUError::SerdeParseError(err) )?;
+
+        // Run all the validators. Return an error if any of them doesn't succeed.
+        validators::unique_ids(&rtu)?;
+        Ok(rtu)
+    }
+}
+
+
+/// Validators for when the config is deserialized from the config file
+mod validators {
+    use std::collections::HashMap;
+    use log::error;
+
+    use super::{RTUError, RTU};
+
+    pub fn unique_ids(rtu: &RTU) -> Result<(), RTUError> {
+        let mut seen: HashMap<&String, bool> = HashMap::new();
+        for device in &rtu.devices {
+            if seen.get(&device.id).is_some() {
+                error!("Found duplicate device ID `{}` in config file", device.id);
+                error!("Rename the duplicate ID `{}` to something else", device.id);
+                return Err(RTUError::DuplicateID(device.id.clone()));
+            }
+            seen.insert(&device.id, true);
+        }
+        Ok(())
     }
 }

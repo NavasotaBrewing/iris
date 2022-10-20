@@ -83,7 +83,9 @@ dependencies = [
 
 [[package]]
 name = "brewdrivers"
-version = "0.12.0"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e14be2f5799e51cb1a99b94fb04c2768a6858c7c207dab58fcb84aa08d80cfc"
 dependencies = [
  "async-trait",
  "crc",
@@ -638,7 +640,7 @@ dependencies = [
 
 [[package]]
 name = "nbc_iris"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "brewdrivers",
  "env_logger",
