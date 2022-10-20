@@ -7,7 +7,7 @@ use brewdrivers::drivers::InstrumentError;
 
 type Result<T> = std::result::Result<T, InstrumentError>;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Device {
     pub id: String,
     pub name: String,

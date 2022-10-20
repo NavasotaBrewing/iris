@@ -20,7 +20,7 @@ pub enum RTUError {
     SerdeParseError(serde_yaml::Error),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct RTU {
     pub name: String,
     pub id: String,
