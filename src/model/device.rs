@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use log::{trace, error};
 
-use brewdrivers::controllers::RelayBoard;
 use brewdrivers::controllers::*;
 use brewdrivers::drivers::InstrumentError;
 
