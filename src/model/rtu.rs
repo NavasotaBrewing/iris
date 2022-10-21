@@ -1,7 +1,7 @@
 use std::fs;
 use std::net::Ipv4Addr;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use brewdrivers::drivers::InstrumentError;
@@ -20,8 +20,12 @@ pub enum RTUError {
     SerdeParseError(serde_yaml::Error),
     #[error("Duplicate ID found: {0}")]
     DuplicateID(String),
-    #[error("Invalid value for key `{key}`: found `{value}`")]
-    InvalidValue { key: String, value: String }
+    #[error("Invalid value for {{ `{key}`: `{value}` }}, {msg}")]
+    InvalidValue {
+        key: String,
+        value: String,
+        msg: String,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -29,7 +33,7 @@ pub struct RTU {
     pub name: String,
     pub id: String,
     pub ip_addr: Ipv4Addr,
-    pub devices: Vec<Device>
+    pub devices: Vec<Device>,
 }
 
 impl RTU {
@@ -50,29 +54,31 @@ impl RTU {
     /// Reads the configuration file and builds an RTU from that
     pub fn generate(conf_path: Option<&str>) -> Result<RTU, RTUError> {
         let file_path = conf_path.or(Some(crate::CONFIG_FILE));
-        
+
         // TODO: Get IPv4 here programatically instead of writing it in the file
 
         // Get the contents of the config file
         let file_contents = fs::read_to_string(
             // this is safe
-            file_path.unwrap()
-        ).map_err(|err| RTUError::IOError(err) )?;
-        
+            file_path.unwrap(),
+        )
+        .map_err(|err| RTUError::IOError(err))?;
+
         // Serialize the file. Return an Err is it doesn't succeed
-        let rtu = serde_yaml::from_str::<RTU>(&file_contents).map_err(|err| RTUError::SerdeParseError(err) )?;
+        let rtu = serde_yaml::from_str::<RTU>(&file_contents)
+            .map_err(|err| RTUError::SerdeParseError(err))?;
 
         // Run all the validators. Return an error if any of them doesn't succeed.
         validators::unique_ids(&rtu)?;
+        validators::id_has_no_whitespace(&rtu)?;
         Ok(rtu)
     }
 }
 
-
 /// Validators for when the config is deserialized from the config file
 mod validators {
-    use std::collections::HashMap;
     use log::error;
+    use std::collections::HashMap;
 
     use super::{RTUError, RTU};
 
@@ -86,6 +92,28 @@ mod validators {
             }
             seen.insert(&device.id, true);
         }
+        Ok(())
+    }
+
+    pub fn id_has_no_whitespace(rtu: &RTU) -> Result<(), RTUError> {
+        if rtu.id.contains(char::is_whitespace) {
+            return Err(RTUError::InvalidValue {
+                key: format!("id"),
+                value: format!("{}", rtu.id),
+                msg: format!("RTU ID cannot contain whitespace"),
+            });
+        }
+
+        for dev in &rtu.devices {
+            if dev.id.contains(char::is_whitespace) {
+                return Err(RTUError::InvalidValue {
+                    key: format!("id"),
+                    value: format!("{}", &dev.id),
+                    msg: format!("Device ID cannot contain whitespace"),
+                });
+            }
+        }
+
         Ok(())
     }
 }

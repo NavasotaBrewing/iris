@@ -29,8 +29,8 @@ features = ["full"]
 
 
 [dependencies.brewdrivers]
-version = "0.12.1"
-# path = "/home/llamicron/code/NavasotaBrewing/brewdrivers"
+# version = "0.12.1"
+path = "/home/llamicron/code/NavasotaBrewing/brewdrivers"
 features = ["network"]
 # default-features = false
 # optional = true
