@@ -1,4 +1,4 @@
-use log::{error, info, trace};
+use log::{error, info, trace, debug};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
@@ -135,7 +135,10 @@ async fn enact_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
 async fn update_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
     trace!("RTU recieved payload, updating and sending it back");
     match RTU::update(&mut rtu).await {
-        Ok(_) => Ok(json_response(&rtu)),
+        Ok(_) => {
+            debug!("RTU String: {:?}", json_response(&rtu));
+            Ok(json_response(&rtu))
+        },
         Err(e) => Ok(json_error_resp(format!("error: {}", e))),
     }
 }
@@ -153,7 +156,10 @@ async fn generate_rtu() -> Result<impl warp::Reply, Infallible> {
     };
 
     match serde_json::to_string(&rtu) {
-        Ok(rtu) => Ok(rtu),
+        Ok(rtu) => {
+            debug!("RTU String: {}", rtu);
+            Ok(rtu)
+        },
         Err(e) => {
             error!("Couldn't serialize RTU: {}", e);
             std::process::exit(1);
