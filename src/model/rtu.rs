@@ -41,7 +41,9 @@ impl RTU {
         Ok(())
     }
 
-    /// Reads the configuration file and builds an RTU from that.
+    /// Reads the configuration file and builds an RTU from that. Note that while this method
+    /// does take an optional file path, that's just used for testing purposes. You should pass
+    /// `None` to this method and use the defualt configuration file at [`crate::CONFIG_FILE`](crate::CONFIG_FILE).
     ///
     /// This will fail if the RTU cannot be deserialized from the configuration file.
     ///
@@ -66,6 +68,7 @@ impl RTU {
         // Run all the validators. Return an error if any of them doesn't succeed.
         validators::devices_have_unique_ids(&rtu)?;
         validators::id_has_no_whitespace(&rtu)?;
+        validators::serial_port_is_valid(&rtu)?;
         Ok(rtu)
     }
 }

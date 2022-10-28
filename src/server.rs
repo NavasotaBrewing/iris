@@ -153,9 +153,7 @@ async fn update_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
 
 /// Generates the RTU model from the configuration file
 async fn generate_rtu() -> Result<impl warp::Reply, Infallible> {
-    let args: Vec<String> = std::env::args().collect();
-
-    let rtu = match RTU::generate(args.get(1).map(|v| v.as_str())) {
+    let rtu = match RTU::generate(None) {
         Ok(rtu) => rtu,
         Err(e) => {
             error!("Couldn't generate RTU from config file: {}", e);
