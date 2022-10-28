@@ -28,6 +28,7 @@ pub enum RTUError {
     },
 }
 
+/// A digital representation of an RTU
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct RTU {
     pub name: String,

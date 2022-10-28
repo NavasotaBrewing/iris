@@ -1,5 +1,8 @@
+//! Execute the Iris server
+
 pub mod model;
 
+/// Same as in lib.rs
 pub const CONFIG_FILE: &'static str = "/etc/NavasotaBrewing/rtu_conf.yaml";
 
 use log::info;
@@ -8,6 +11,7 @@ use env_logger::Env;
 // Only compile that module if we want the web server
 // This is good for the CLI because we can use the RTU generation
 // code without compiling warp and tokio
+// TODO: check that the CLI is actually using non-standard features
 #[cfg(feature = "web")]
 pub mod server;
 

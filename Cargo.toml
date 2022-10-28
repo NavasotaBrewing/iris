@@ -35,6 +35,10 @@ features = ["network"]
 # default-features = false
 # optional = true
 
+[dev-dependencies]
+tokio-test = "0.4.2"
+pretty_assertions = "1.3.0"
+
 
 [features]
 default = ["web"]

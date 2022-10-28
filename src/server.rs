@@ -1,3 +1,7 @@
+//! The Iris server, build on Warp
+//! 
+//! This does not get compiled if using the crate as a library, only as an executable
+
 use log::{error, info, trace, debug};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
@@ -6,11 +10,13 @@ use crate::model::RTU;
 use warp::http::Response;
 use warp::{hyper::Method, Filter};
 
+/// A basic error response, to serialize to json
 #[derive(Debug, Serialize, Deserialize)]
 struct ErrorResponse {
     msg: String,
 }
 
+/// Creates a JSON response object with an error message
 fn json_error_resp(msg: String) -> Result<Response<String>, warp::http::Error> {
     let resp_str = serde_json::to_string(&ErrorResponse { msg }).unwrap();
     // It's VERY important to set that header
@@ -20,6 +26,7 @@ fn json_error_resp(msg: String) -> Result<Response<String>, warp::http::Error> {
         .body(resp_str)
 }
 
+/// Creates a JSON response object with any arbitrary serializable data
 fn json_response<T: Serialize>(value: T) -> Result<Response<String>, warp::http::Error> {
     let resp_str = serde_json::to_string(&value).unwrap();
     // It's VERY important to set that header
@@ -48,6 +55,7 @@ pub async fn run() {
     });
 
     // CORS setup
+    // Please don't mess with this
     let cors = warp::cors()
         .allow_any_origin()
         .allow_headers(vec![
@@ -91,6 +99,7 @@ pub async fn run() {
 
     // Config file stuff
     // if they provide a command line argument, use it as the config file
+    // TODO: maybe get rid of this? Might just want to leave the file location static
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() > 1 {
@@ -128,7 +137,6 @@ async fn enact_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
         Ok(_) => return Ok(json_response(&rtu)),
         Err(e) => return Ok(json_error_resp(format!("error: {}", e))),
     };
-
 }
 
 /// Receives the RTU model and updates it to match the hardware, aka Read mode
