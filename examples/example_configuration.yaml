@@ -1,0 +1,26 @@
+name: Testing RTU
+id: testing-rtu
+ip_addr: 0.0.0.0
+devices:
+-   id: pump
+    name: Pump
+    port: /dev/ttyUSB0
+    addr: 2
+    controller: STR1
+    controller_addr: 254
+    state: Off
+    # These are not necessary in this case
+    pv: 75.8
+    # These are not necessary in this case
+    sv: 132.0
+-   id: another-pump
+    name: Pump
+    port: /dev/ttyUSB0
+    addr: 2
+    controller: STR1
+    controller_addr: 254
+    state: Off
+    # These are not necessary in this case
+    pv: 75.8
+    # These are not necessary in this case
+    sv: 132.0
