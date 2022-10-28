@@ -6,7 +6,7 @@
 //!
 //! `serde` takes care of making sure the proper values are present; only values in an `Option<>` can be missing.
 
-use log::{error, info};
+use log::{error, info, warn};
 use std::{collections::HashMap, path::Path};
 
 use super::{RTUError, RTU};
@@ -53,31 +53,56 @@ pub fn id_has_no_whitespace(rtu: &RTU) -> Result<(), RTUError> {
 
 /// This will actually *not* fail if the serial port doesn't exist. Sometimes we disconnect
 /// the cable and the port goes away, but it's still valid. Instead, it just checks that it's a
-/// valid path.
+/// valid path in `/dev/`.
 ///
 /// This will however print a `warn!()` statement if the port doesn't exist, if a logger is configured.
+/// That will help if the brewer configures the wrong port or there's an electrical error.
 pub fn serial_port_is_valid(rtu: &RTU) -> Result<(), RTUError> {
     for dev in &rtu.devices {
+        // If they somehow pass an empty string
+        // maybe with port: "" in the config file
+        if dev.port.len() == 0 {
+            let err = RTUError::validation_error(("port", &dev.port), "serial port cannot be empty");
+            error!("{}", err);
+            return Err(err);
+        }
+
         let path = Path::new(&dev.port);
+
         if !path.starts_with("/dev") {
-            // return Err(RTUError)
+            let err = RTUError::validation_error(("port", &dev.port), "port path must be in /dev/*");
+            error!("{}", err);
+            return Err(err);
+        }
+
+        match path.try_exists() {
+            Ok(true) => {},
+            Ok(false) => warn!("The serial port you configured is valid but does not currently exist. Are your cables plugged in?"),
+            Err(e) => {
+                error!("The port path you configured is hidden from me (or something similar). I can't determine if it exists or not.");
+                error!("I'll let it slide this time since we're not using the serial port at this moment,
+                        but maybe double check your serial port configuration");
+                error!("{}", e);
+            }
         }
     }
+    
+    info!("RTU passed serial_port_is_valid() validator");
     Ok(())
 }
 
 #[cfg(test)]
 mod test_validators {
     use super::*;
-    
+
     use std::{net::Ipv4Addr, str::FromStr};
 
     use brewdrivers::controllers::*;
     use tokio_test::{assert_err, assert_ok};
     use AnyState as AS;
     use BinaryState as BS;
-    
-    use crate::model::{RTU, Device};
+
+    use crate::model::{Device, RTU};
 
     // Just quickly sets up an RTU for testing purposes
     fn rtu(name: &str, id: &str, devices: Vec<Device>) -> RTU {
@@ -171,5 +196,48 @@ mod test_validators {
         assert_err!(id_has_no_whitespace(&rtu));
         rtu.id = String::from("no-whitespace");
         assert_ok!(id_has_no_whitespace(&rtu));
+    }
+
+    #[test]
+    fn test_serial_port_is_valid() {
+        let devices = vec![
+            device(
+                "pump",
+                "Pump",
+                "/dev/ttyUSB0", // Valid, may not exist but still valid
+                0,
+                Controller::STR1,
+                254,
+                AS::BinaryState(BS::On),
+            )
+        ];
+        
+        let mut rtu = rtu("testing RTU", "test-id", devices);
+        
+        assert_ok!(serial_port_is_valid(&rtu));
+
+        rtu.devices.push(device(
+            "another pump",
+            "another-pump",
+            "/dev/peepee_poopoo", // Still valid, definitely doesn't exist
+            1,
+            Controller::STR1,
+            254,
+            AS::BinaryState(BS::On),
+        ));
+
+        assert_ok!(serial_port_is_valid(&rtu));
+
+        rtu.devices.push(device(
+            "another pump",
+            "another-pump",
+            "/etc/different", // not valid
+            1,
+            Controller::STR1,
+            254,
+            AS::BinaryState(BS::On),
+        ));
+
+        assert_err!(serial_port_is_valid(&rtu));
     }
 }
