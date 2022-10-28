@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use brewdrivers::drivers::InstrumentError;
 
-use super::{RTUError, validators, Device};
+use super::{validators, Device, RTUError};
 
 /// A digital representation of an RTU
 ///
@@ -47,8 +47,8 @@ impl RTU {
     ///
     /// This will fail if the RTU cannot be deserialized from the configuration file.
     ///
-    /// Each validator in [`validators`](crate::model::validators) will be called on the RTU,
-    /// and this will only return `Ok(RTU)` if every validator returns `Ok(())`
+    /// This method calls [`RTU::validate()`](crate::model::RTU::validate) and returns an error if any of
+    /// them don't succeed.
     pub fn generate(conf_path: Option<&str>) -> Result<RTU, RTUError> {
         let file_path = conf_path.or(Some(crate::CONFIG_FILE));
 
@@ -65,10 +65,16 @@ impl RTU {
         let rtu = serde_yaml::from_str::<RTU>(&file_contents)
             .map_err(|err| RTUError::SerdeParseError(err))?;
 
-        // Run all the validators. Return an error if any of them doesn't succeed.
-        validators::devices_have_unique_ids(&rtu)?;
-        validators::id_has_no_whitespace(&rtu)?;
-        validators::serial_port_is_valid(&rtu)?;
+        rtu.validate()?;
         Ok(rtu)
     }
+
+    /// Run all the [`validators`](crate::model::validators). Return an error if any of them don't succeed.
+    pub fn validate(&self) -> Result<(), RTUError> {
+        validators::devices_have_unique_ids(&self)?;
+        validators::id_has_no_whitespace(&self)?;
+        validators::serial_port_is_valid(&self)?;
+        Ok(())
+    }
+
 }

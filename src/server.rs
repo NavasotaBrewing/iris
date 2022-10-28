@@ -97,32 +97,15 @@ pub async fn run() {
         .or(enact_rtu_route);
 
 
-    // Config file stuff
-    // if they provide a command line argument, use it as the config file
-    // TODO: maybe get rid of this? Might just want to leave the file location static
-    let args: Vec<String> = std::env::args().collect();
-
-    if args.len() > 1 {
-        info!(
-            "Attempting to use `{}` as config file",
-            args.get(1).unwrap()
-        );
-    } else {
-        info!(
-            "You didn't provide a config file, I'm going to use `{}` as a default",
-            crate::CONFIG_FILE
-        );
-    }
-
-    match RTU::generate(args.get(1).map(|v| v.as_str())) {
+    match RTU::generate(None) {
         Ok(rtu) => {
             info!("RTU configuration serialized successfully");
             info!("{} device(s) configured", rtu.devices.len());
             warp::serve(routes).run(([0, 0, 0, 0], 3012)).await;
         }
         Err(e) => {
-            error!("Error: RTU configuration couldn't not be deserialized");
-            error!("Error: {}", e);
+            error!("RTU configuration couldn't not be deserialized");
+            error!("{}", e);
             error!("Aborting. Fix your configuration file.");
             std::process::exit(1);
         }

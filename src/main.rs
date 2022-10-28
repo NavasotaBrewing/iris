@@ -21,12 +21,13 @@ pub mod server;
 #[cfg(feature = "web")]
 #[tokio::main]
 async fn main() {
-    let args: Vec<String> = std::env::args().collect();
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-
-    // If they pass --validate-config as an arg, validate the default config file
+    
+    let args: Vec<String> = std::env::args().collect();
+    
+    // If they pass validate-config as an arg, validate the default config file
     if let Some(arg1) = args.get(1) {
-        if arg1 == "--validate-config" {
+        if arg1 == "validate-config" {
             validate_config();
             return;
         }
