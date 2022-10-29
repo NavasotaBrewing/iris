@@ -26,16 +26,16 @@ pub struct RTU {
 
 impl RTU {
     /// This calls [`Device::enact`](crate::model::Device::enact) on each device in the RTU
-    pub async fn enact(rtu: &mut RTU) -> Result<(), InstrumentError> {
-        for dev in rtu.devices.iter_mut() {
+    pub async fn enact(&mut self) -> Result<(), InstrumentError> {
+        for dev in self.devices.iter_mut() {
             dev.enact().await?;
         }
         Ok(())
     }
 
     /// This calls [`Device::update`](crate::model::Device::update) on each device in the RTU
-    pub async fn update(rtu: &mut RTU) -> Result<(), InstrumentError> {
-        for dev in rtu.devices.iter_mut() {
+    pub async fn update(&mut self) -> Result<(), InstrumentError> {
+        for dev in self.devices.iter_mut() {
             dev.update().await?;
         }
         Ok(())

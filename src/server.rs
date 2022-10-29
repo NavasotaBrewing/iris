@@ -116,7 +116,7 @@ pub async fn run() {
 /// Receives the RTU model and updates the hardware to match, aka Write mode
 async fn enact_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
     trace!("RTU recieved payload, enacting changes");
-    match RTU::enact(&mut rtu).await {
+    match rtu.enact().await {
         Ok(_) => return Ok(json_response(&rtu)),
         Err(e) => return Ok(json_error_resp(format!("error: {}", e))),
     };
@@ -125,7 +125,7 @@ async fn enact_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
 /// Receives the RTU model and updates it to match the hardware, aka Read mode
 async fn update_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
     trace!("RTU recieved payload, updating and sending it back");
-    match RTU::update(&mut rtu).await {
+    match rtu.update().await {
         Ok(_) => {
             debug!("RTU String: {:?}", json_response(&rtu));
             Ok(json_response(&rtu))
