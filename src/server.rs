@@ -6,7 +6,7 @@ use log::{error, info, trace, debug};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
-use crate::model::RTU;
+use brewdrivers::model::RTU;
 use warp::http::Response;
 use warp::{hyper::Method, Filter};
 
