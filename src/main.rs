@@ -37,6 +37,13 @@ async fn main() {
     server::run().await;
 }
 
+#[cfg(not(feature = "web"))]
+fn main() {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
+    validate_config();
+}
+
 // Calls RTU::generate on the given path
 pub fn validate_config() {
     let path = Path::new(CONFIG_FILE);

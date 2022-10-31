@@ -677,7 +677,7 @@ dependencies = [
 
 [[package]]
 name = "nbc_iris"
-version = "0.6.5"
+version = "0.6.6"
 dependencies = [
  "brewdrivers",
  "env_logger",
