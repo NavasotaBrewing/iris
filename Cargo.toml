@@ -1,6 +1,6 @@
 [package]
 name = "nbc_iris"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2021"
 description = "The networking component of the brewery control system"
 license = "MIT"
@@ -35,7 +35,7 @@ features = ["full"]
 
 [dependencies.brewdrivers]
 # path = "/home/llamicron/usr/dev/NavasotaBrewing/brewdrivers"
-version = "0.13"
+version = "0.14"
 # default-features = false
 # optional = true
 
