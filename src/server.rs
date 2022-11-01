@@ -4,7 +4,7 @@
 
 use log::{error, info, trace, debug};
 use serde::{Deserialize, Serialize};
-use warp::{method, path};
+use warp::path;
 use std::convert::Infallible;
 
 use brewdrivers::model::RTU;

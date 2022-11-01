@@ -34,8 +34,8 @@ features = ["full"]
 
 
 [dependencies.brewdrivers]
-# path = "/home/llamicron/usr/dev/NavasotaBrewing/brewdrivers"
-version = "0.14"
+path = "/home/llamicron/usr/dev/NavasotaBrewing/brewdrivers"
+# version = "0.14"
 # default-features = false
 # optional = true
 
