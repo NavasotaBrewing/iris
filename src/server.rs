@@ -4,6 +4,7 @@
 
 use log::{error, info, trace, debug};
 use serde::{Deserialize, Serialize};
+use warp::{method, path};
 use std::convert::Infallible;
 
 use brewdrivers::model::RTU;
@@ -45,13 +46,13 @@ pub async fn run() {
         info!("remote addr: {:?}", info.remote_addr());
         info!("method: {:?}", info.method());
         info!("path: {:?}", info.path());
-        // info!("version: {:#?}", info.version());
+        trace!("version: {:#?}", info.version());
         info!("status: {:?}", info.status());
-        // info!("referer: {:#?}", info.referer());
-        // info!("user_agent: {:#?}", info.user_agent());
-        // info!("elapsed: {:#?}", info.elapsed());
+        trace!("referer: {:#?}", info.referer());
+        trace!("user_agent: {:#?}", info.user_agent());
+        trace!("elapsed: {:#?}", info.elapsed());
         info!("host: {:?}", info.host());
-        // info!("request_headers: {:#?}", info.request_headers());
+        trace!("request_headers: {:#?}", info.request_headers());
     });
 
     // CORS setup
@@ -85,7 +86,8 @@ pub async fn run() {
         .with(&incoming_log)
         .with(&cors);
 
-    let enact_rtu_route = warp::path("enact")
+    let enact_rtu_route = warp::post()
+        .and(path("enact"))
         .and(warp::body::json())
         .and_then(enact_rtu)
         .with(&incoming_log)
