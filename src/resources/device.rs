@@ -1,25 +1,22 @@
+use gotham::state::{State, FromState};
 use gotham_restful::*;
-use hyper::StatusCode;
+use crate::RTUState;
+
+use super::good_resp;
 
 use brewdrivers::model::Device;
 
 #[derive(Resource, serde::Deserialize)]
 #[resource(read_all, read, update)]
-pub struct DeviceResource(Device);
-
-fn good_resp<T: serde::Serialize>(data: T) -> Response {
-    Response::new(
-        StatusCode::OK,
-        serde_json::to_string(&data).unwrap(),
-        None
-    )
-}
+pub struct DeviceResource;
 
 /// Reads all devices configured
 #[read_all]
-fn read_all() -> Response {
+fn read_all(state: &mut State) -> Response {
     // let rtu = RTU::generate(None).unwrap();
 	// Response::new(StatusCode::OK, serde_json::to_string(&rtu.devices).unwrap(), None)
+    let rtu = RTUState::borrow_from(&state);
+    log::info!("{:?}", rtu.inner);
     good_resp("todo!()")
 }
 
