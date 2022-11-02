@@ -1,33 +1,32 @@
-use gotham::state::{State, FromState};
+use gotham::{state::{StateData, FromState, State}, prelude::StaticResponseExtender};
 use gotham_restful::*;
+use hyper::{StatusCode, Method};
+use serde::{Deserialize};
 use crate::RTUState;
 
-use super::good_resp;
+use super::{good_resp, bad_resp};
 
-use brewdrivers::model::Device;
+use brewdrivers::model::{Device, RTU};
 
 #[derive(Resource, serde::Deserialize)]
-#[resource(read_all, read, update)]
+#[resource(update_device)]
 pub struct DeviceResource;
 
-/// Reads all devices configured
-#[read_all]
-fn read_all(state: &mut State) -> Response {
-    // let rtu = RTU::generate(None).unwrap();
-	// Response::new(StatusCode::OK, serde_json::to_string(&rtu.devices).unwrap(), None)
-    let rtu = RTUState::borrow_from(&state);
-    log::info!("{:?}", rtu.inner);
-    good_resp("todo!()")
-}
+#[derive(Deserialize, Clone, StateData, StaticResponseExtender)]
+pub struct DeviceID(String);
 
-/// Reads a specific device
-#[read]
-fn read(_: String) -> Response {
-    good_resp("todo!()")
-}
-
-/// Updates a device
-#[update]
-fn update(_: String, _: Device) -> Response {
-    good_resp("todo!()")
+#[endpoint(
+    uri = "update/:id",
+    method = "Method::GET",
+    params = false,
+    body = false
+)]
+pub async fn update_device(id: DeviceID, state: &mut State) -> Response {
+    // log::info!("Got id: `{}`", id.0);
+    // let rtu_state = RTUState::borrow_from(&state);
+    // let mut rtu = rtu_state.inner.lock().await;
+    // if let Some(device) = rtu.device(&id.0).as_mut() {
+    //     log::info!("got device: {:?}", device);
+    // }
+    Response::no_content()
 }

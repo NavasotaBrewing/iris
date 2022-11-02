@@ -1,10 +1,14 @@
 //! Execute the Iris server
+
+#![allow(dead_code, unused_imports)]
+
 use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use log::info;
 use env_logger::Env;
-use gotham::{pipeline::{single_pipeline, new_pipeline}, router::build_router, state::StateData, middleware::state::StateMiddleware};
+use gotham::{pipeline::{single_pipeline, new_pipeline}, router::{build_router, Router}, state::StateData, middleware::state::StateMiddleware};
 use gotham_restful::{*, cors::*};
 use hyper::header::CONTENT_TYPE;
 
@@ -44,11 +48,7 @@ impl RTUState {
 	}
 }
 
-
-pub fn main() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    info!("Starting IRIS web server");
-
+fn router() -> Router {
 	let cors = CorsConfig {
 		origin: Origin::Copy,
 		headers: Headers::List(vec![CONTENT_TYPE]),
@@ -57,7 +57,6 @@ pub fn main() {
 	};
 
 	let rtu = RTUState::new();
-
 
 	let middleware = StateMiddleware::new(rtu);
 
@@ -68,12 +67,46 @@ pub fn main() {
 			.build()
 	);
 
+	build_router(chain, pipelines, |route| {
+		route.resource::<resources::DeviceResource>("device");
+		route.resource::<resources::RTUResource>("rtu");
+	})
+}
+
+pub fn main() {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    info!("Starting IRIS web server");
+
 	gotham::start(
 		"127.0.0.1:7878",
-		build_router(chain, pipelines, |route| {
-			route.resource::<resources::DeviceResource>("device");
-            route.resource::<resources::RTUResource>("rtu");
-		})
+		router()
 	)
 	.expect("Failed to start gotham");
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gotham::test::TestServer;
+    use hyper::StatusCode;
+
+    fn addr() -> &'static str {
+		"http://localhost:7878"
+	}
+
+    #[test]
+    fn test_device_update() {
+        let test_server = TestServer::new(router()).unwrap();
+        let response = test_server
+            .client()
+            .get(
+                format!("{}/device/update/omega1", addr())
+            )
+            .perform()
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    }
 }
