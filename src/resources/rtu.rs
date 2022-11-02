@@ -1,16 +1,16 @@
 use gotham::state::State;
 use gotham::prelude::*;
 use gotham_restful::*;
-use hyper::Method;
+use hyper::{Method, StatusCode};
 use log::info;
 use crate::RTUState;
 
-use super::good_resp;
+use super::{good_resp, bad_resp};
 
 use brewdrivers::model::RTU;
 
 #[derive(Resource, serde::Deserialize)]
-#[resource(read_all, read, update)]
+#[resource(generate, update, enact)]
 pub struct RTUResource;
 
 
@@ -21,39 +21,44 @@ pub struct RTUResource;
     params = false,
     body = false
 )]
-async fn read_all(state: &mut State) -> Response {
+async fn generate(state: &mut State) -> Response {
     let rtu_state = RTUState::borrow_from(&state);
     let rtu = rtu_state.inner.lock().await;
-    good_resp(rtu.clone())
+    good_resp(rtu.clone(), StatusCode::OK)
 }
 
-/// Reads the RTU (match RTU values to controllers)
+/// Calls `update` on the RTU stored in the state, then returns it
 #[endpoint(
-	uri = "read",
+	uri = "update",
 	method = "Method::GET",
 	params = false,
 	body = false
 )]
-async fn read(state: &mut State) -> Response {
+async fn update(state: &mut State) -> Response {
     let rtu_state = RTUState::borrow_from(&state);
     // TODO: Error handling
-    rtu_state.update().await.unwrap();
-    let rtu = rtu_state.inner.lock().await;
-    good_resp(rtu.clone())
+    match rtu_state.update().await {
+        Ok(_) => {
+            let rtu = rtu_state.inner.lock().await;
+            good_resp(rtu.clone(), StatusCode::OK)
+        },
+        Err(e) => bad_resp(e, StatusCode::INTERNAL_SERVER_ERROR)
+    }
 }
 
 
-/// Updates an RTU (write state to controllers)
+/// Enacts the RTU posted, then returns Ok
 #[endpoint(
-    uri = "update",
+    uri = "enact",
     method = "Method::POST",
     params = false,
     body = true
 )]
-async fn update(state: &mut State, mut body: RTU) -> Response {
+async fn enact(state: &mut State, mut body: RTU) -> Response {
     info!("About to update state of RTU `{}`", body.id);
     body.enact().await.unwrap();
     let rtu_state = RTUState::borrow_from(&state);
     *rtu_state.inner.lock().await = body;
-    good_resp(rtu_state.inner.lock().await.clone())
+    // good_resp(rtu_state.inner.lock().await.clone())
+    Response::no_content()
 }
