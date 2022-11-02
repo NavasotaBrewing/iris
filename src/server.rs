@@ -118,10 +118,18 @@ pub async fn run() {
 /// Receives the RTU model and updates the hardware to match, aka Write mode
 async fn enact_rtu(mut rtu: RTU) -> Result<impl warp::Reply, Infallible> {
     trace!("RTU recieved payload, enacting changes");
+    // match rtu.enact().await {
+    //     Ok(_) => return Ok(json_response(&rtu)),
+    //     Err(e) => return Ok(json_error_resp(format!("error: {}", e))),
+    // };
     match rtu.enact().await {
-        Ok(_) => return Ok(json_response(&rtu)),
-        Err(e) => return Ok(json_error_resp(format!("error: {}", e))),
-    };
+        Ok(_) => {
+            return Ok(serde_json::to_string(&rtu).unwrap());
+        }
+        Err(e) => {
+            return Ok(serde_json::to_string(&format!("{}", e)).unwrap())
+        }
+    }
 }
 
 /// Receives the RTU model and updates it to match the hardware, aka Read mode
