@@ -87,8 +87,10 @@ pub fn main() {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use super::*;
     use env_logger::Env;
-    use gotham::test::TestResponse;
+    use gotham::{test::{TestResponse, TestServer}, mime};
+    use hyper::Body;
 
     // Enable env_logger in tests
     #[ctor::ctor]
@@ -96,11 +98,31 @@ pub(crate) mod tests {
         env_logger::Builder::from_env(Env::default().default_filter_or("nbc_iris=trace")).init();
     }
 
+    // The following methods are used as helper methods in
+    // the other modules' tests
     pub fn addr(uri: &str) -> String {
         format!("http://localhost:7878/{}", uri)
     }
 
     pub fn resp_to_string(resp: TestResponse) -> String {
         String::from_utf8(resp.read_body().unwrap()).unwrap()
+    }
+
+    pub(crate) fn get(uri: &str) -> TestResponse {
+        let test_server = TestServer::new(router()).unwrap();
+        test_server
+            .client()
+            .get(addr(uri))
+            .perform()
+            .unwrap()
+    }
+
+    pub(crate) fn post<T: Serialize>(uri: &str, body: T) -> TestResponse {
+        let test_server = TestServer::new(router()).unwrap();
+        test_server
+            .client()
+            .post(addr(uri), serde_json::to_string(&body).unwrap(), mime::APPLICATION_JSON)
+            .perform()
+            .unwrap()
     }
 }
