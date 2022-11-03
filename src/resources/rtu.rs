@@ -5,7 +5,8 @@ use hyper::{Method, StatusCode};
 use log::info;
 use crate::RTUState;
 
-use super::{good_resp, bad_resp};
+use crate::error::RequestError;
+use crate::resp::{good_resp, bad_resp};
 
 use brewdrivers::model::RTU;
 
@@ -62,3 +63,4 @@ async fn enact(state: &mut State, mut body: RTU) -> Response {
     // good_resp(rtu_state.inner.lock().await.clone())
     Response::no_content()
 }
+
