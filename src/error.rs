@@ -12,7 +12,7 @@ pub enum RequestError {
 }
 
 /// A wrapper for an error message
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorJson {
     error: String
 }

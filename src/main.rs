@@ -95,7 +95,7 @@ pub(crate) mod tests {
     // Enable env_logger in tests
     #[ctor::ctor]
     fn init() {
-        env_logger::Builder::from_env(Env::default().default_filter_or("nbc_iris=trace")).init();
+        env_logger::Builder::from_env(Env::default().default_filter_or("nbc_iris=warn")).init();
     }
 
     // The following methods are used as helper methods in

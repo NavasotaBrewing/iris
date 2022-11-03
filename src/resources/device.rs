@@ -34,8 +34,10 @@ pub async fn update_device(id: DeviceID, state: &mut State) -> Response {
 
     match rtu.device(&id.id).as_mut() {
         Some(device) => {
-            device.update().await.unwrap();
-            good_resp(device, StatusCode::OK)
+            match device.update().await {
+                Ok(_) => good_resp(device, StatusCode::OK),
+                Err(e) => bad_resp(RequestError::InstrumentError(e), StatusCode::INTERNAL_SERVER_ERROR)
+            }
         }
         None => bad_resp(RequestError::DeviceNotFound(id.id), StatusCode::NOT_FOUND),
     }
@@ -126,11 +128,19 @@ mod tests {
         assert!(resp_json.message().contains("not found"));
     }
 
+    #[ignore = "This makes the RTU configuration invalid and not usable for other programs"]
+    #[test]
+    fn test_instrument_error() {
+        let response = get("device/update/wserror");
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let content = resp_to_string(response);
+        let resp_json: ErrorJson = serde_json::from_str(&content).unwrap();
+        assert!(resp_json.message().contains("Instrument error"));
+    }
+
     #[test]
     fn test_enact_device() {
-        let test_server = TestServer::new(router()).unwrap();
-        
-
         let resp = get("device/update/wsrelay0");
         let mut device: Device = serde_json::from_str(
             &resp_to_string(resp)
