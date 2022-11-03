@@ -46,12 +46,15 @@ impl RTUState {
         }
     }
 
-    async fn update(&self) -> Result<RTU, InstrumentError> {
+    async fn update(&self) -> Result<(), InstrumentError> {
         let mut r = self.inner.lock().await;
         (*r).update().await?;
-        Ok(r.clone())
+        Ok(())
     }
 
+    /// This function is extremely costly and you shouldn't use it. Instead, 
+    /// call `Device::enact()` on only the devices that need it
+    #[deprecated = "This is too costly, use `brewdrivers::model::Device::enact()` instead"]
     async fn enact(&self) -> Result<(), InstrumentError> {
         let mut r = self.inner.lock().await;
         (*r).enact().await
