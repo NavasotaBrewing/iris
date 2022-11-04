@@ -2,8 +2,7 @@
 
 use gotham_restful::Response;
 use hyper::StatusCode;
-use serde::Serialize;
-use crate::error::{RequestError, ErrorJson};
+use crate::error::ErrorJson;
 
 pub(crate) fn good_resp<T: serde::Serialize>(data: T, status: StatusCode) -> Response {
     Response::json(

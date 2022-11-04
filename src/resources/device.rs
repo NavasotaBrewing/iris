@@ -3,14 +3,14 @@ use gotham::{
     state::{FromState, State, StateData},
 };
 use gotham_restful::*;
-use hyper::{Method, StatusCode, Body};
+use hyper::{Method, StatusCode};
 use serde::Deserialize;
 
 use crate::error::RequestError;
 use crate::resp::{bad_resp, good_resp};
 use crate::RTUState;
 
-use brewdrivers::model::{Device, RTU};
+use brewdrivers::model::Device;
 
 #[derive(Resource, serde::Deserialize)]
 #[resource(update_device, enact_device)]
@@ -66,20 +66,14 @@ pub async fn enact_device(id: DeviceID, state: &mut State, mut body: Device) -> 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use brewdrivers::state::BinaryState;
-    use env_logger::Env;
-    use gotham::test::{TestResponse, TestServer};
-    use hyper::{StatusCode, Body};
+    use hyper::StatusCode;
     use log::*;
 
     use brewdrivers::model::Device;
-    use tokio_test::assert_err;
 
     use crate::error::ErrorJson;
-    use crate::router;
-    use crate::tests::{addr, get, post, resp_to_string};
+    use crate::tests::{get, post, resp_to_string};
 
     #[test]
     fn test_update_omega() {

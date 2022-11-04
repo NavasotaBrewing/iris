@@ -1,8 +1,4 @@
-
-use std::future::Future;
-
 use crate::RTUState;
-use brewdrivers::drivers::InstrumentError;
 use gotham::prelude::*;
 use gotham::state::State;
 use gotham_restful::*;
@@ -78,17 +74,8 @@ mod tests {
     use super::*;
 
     use brewdrivers::state::BinaryState;
-    use env_logger::Env;
-    use gotham::test::{TestResponse, TestServer};
-    use hyper::{Body, StatusCode};
-    use log::*;
-
-    use brewdrivers::model::Device;
-    use tokio_test::assert_err;
-
-    use crate::error::ErrorJson;
-    use crate::router;
-    use crate::tests::{addr, get, post, resp_to_string};
+    use hyper::StatusCode;
+    use crate::tests::{get, post, resp_to_string};
 
     #[test]
     fn test_update_rtu() {

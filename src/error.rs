@@ -25,6 +25,7 @@ impl ErrorJson {
         }
     }
 
+    #[allow(dead_code)]
     pub fn message(&self) -> &String {
         &self.error
     }

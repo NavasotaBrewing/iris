@@ -122,7 +122,7 @@ checksum = "22a81f981b8ef527251cf84b62c73331637431d5d34820d7f166ed28ea97afd6"
 
 [[package]]
 name = "brewdrivers"
-version = "0.15.0"
+version = "0.16.2"
 dependencies = [
  "async-trait",
  "crc",

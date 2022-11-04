@@ -1,11 +1,8 @@
 //! Execute the Iris server
 #![feature(trivial_bounds)]
-#![allow(dead_code, unused_imports)]
 
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::Mutex;
-
+use tokio::{sync::Mutex};
 use env_logger::Env;
 use gotham::{
     middleware::state::StateMiddleware,
@@ -15,11 +12,11 @@ use gotham::{
 };
 use gotham_restful::{cors::*, *};
 use hyper::header::CONTENT_TYPE;
-use log::info;
+use log::*;
 
 use brewdrivers::{
     drivers::InstrumentError,
-    model::{Device, RTU},
+    model::RTU,
 };
 
 /// Same as in lib.rs
@@ -55,6 +52,7 @@ impl RTUState {
     /// This function is extremely costly and you shouldn't use it. Instead, 
     /// call `Device::enact()` on only the devices that need it
     #[deprecated = "This is too costly, use `brewdrivers::model::Device::enact()` instead"]
+    #[allow(dead_code)]
     async fn enact(&self) -> Result<(), InstrumentError> {
         let mut r = self.inner.lock().await;
         (*r).enact().await
@@ -91,9 +89,9 @@ pub fn main() {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use serde::Serialize;
     use env_logger::Env;
     use gotham::{test::{TestResponse, TestServer}, mime};
-    use hyper::Body;
 
     // Enable env_logger in tests
     #[ctor::ctor]
