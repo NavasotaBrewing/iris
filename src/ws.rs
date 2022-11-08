@@ -2,7 +2,7 @@
 
 use brewdrivers::drivers::InstrumentError;
 use log::*;
-use warp::Rejection;
+use warp::{Rejection, Reply};
 use warp::reject::Reject;
 use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
@@ -46,9 +46,19 @@ pub(crate) struct Event {
     pub device: Device,
 }
 
+#[derive(Debug, Serialize)]
 pub(crate) struct EventError {
     error_type: ErrorType,
     error: String
+}
+
+impl EventError {
+    pub(crate) fn new(error_type: ErrorType, message: String) -> Self {
+        Self {
+            error_type,
+            error: message
+        }
+    }
 }
 
 // Connects a client to a websocket
@@ -69,7 +79,9 @@ pub async fn client_connection(ws: WebSocket, id: String, clients: Clients, mut 
 
     info!("{} connected", id);
 
+    // For each message
     while let Some(result) = client_ws_rcv.next().await {
+        // Retrieve the message
         let msg = match result {
             Ok(msg) => msg,
             Err(e) => {
@@ -77,7 +89,25 @@ pub async fn client_connection(ws: WebSocket, id: String, clients: Clients, mut 
                 break;
             }
         };
-        client_msg(&id, msg, &clients).await;
+
+        // Call the handler and get the response
+        // Note that errors that happen in brewdrivers are returned
+        // as an Ok(Message) with an error payload inside, not an Err()
+        let response = client_msg(msg).await;
+       
+        // If the client is still connected, send the response
+        let c = clients.lock().await;
+        match c.get(&id) {
+            Some(client) => {
+                if let Some(sender) = &client.sender {
+                    sender.send(response).unwrap();
+                }
+            },
+            None => {
+                error!("Couldn't find client registered with that id: {}", id);
+                return;
+            }
+        };
     }
 
     clients.lock().await.remove(&id);
@@ -85,55 +115,42 @@ pub async fn client_connection(ws: WebSocket, id: String, clients: Clients, mut 
 }
 
 // Handler for when a client sends a message
-async fn client_msg(id: &str, msg: Message, clients: &Clients) {
+// Parse the event, handle it, and return a response event (or error)
+async fn client_msg(msg: Message) -> Result<Message, warp::Error> {
     // retrieve the message
     let message = match msg.to_str() {
         Ok(m) => m,
-        Err(_) => {
+        Err(e) => {
             error!("Couldn't convert ws message to string: {:?}", msg);
-            return;
+            let err = EventError::new(ErrorType::SerializationError, format!("{:?}", e));
+            return Ok(Message::text(serde_json::to_string(&err).unwrap()));
         }
     };
 
     // Deserialize the event
-    let event: Event = match serde_json::from_str(&message) {
-        Ok(event) => event,
+    match serde_json::from_str(&message) {
+        Ok(event) => return handle_event(event).await,
         Err(e) => {
             error!("Couldn't deserialize event: {}", e);
-            return;
+            let err = EventError::new(ErrorType::SerializationError, format!("{}", e));
+            return Ok(Message::text(serde_json::to_string(&err).unwrap()));
         }
     };
 
-    // call the handler and get the response
-    let response = handle_event(event).await;
-
-    // If the client is still connected, send the response
-    let c = clients.lock().await;
-    let client = match c.get(id) {
-        Some(client) => client,
-        None => {
-            error!("Couldn't find client registered with that id: {}", id);
-            return;
-        }
-    };
-
-    if let Some(sender) = &client.sender {
-        sender.send(response).unwrap();
-    }
 }
 
 async fn handle_event(mut event: Event) -> std::result::Result<Message, warp::Error> {
     // update/enact the device based on event type
     let res = match event.event_type {
-        EventType::Enact => event.device.enact().await.map_err(|e| BrewdriversError::from(e) ),
-        EventType::Update => event.device.update().await.map_err(|e| BrewdriversError::from(e) ),
+        EventType::Enact => event.device.enact().await.map_err(|e| EventError::new(ErrorType::BrewdriversError, format!("{}", e)) ),
+        EventType::Update => event.device.update().await.map_err(|e| EventError::new(ErrorType::BrewdriversError, format!("{}", e)) ),
     };
 
     match res {
         Ok(_) => Ok(Message::text(
             serde_json::to_string(&event.device).unwrap(),
         )),
-        Err(e) => Err(warp::reject::custom(e))
+        Err(e) => Ok(Message::text(serde_json::to_string(&e).unwrap()))
     }
     
 }
