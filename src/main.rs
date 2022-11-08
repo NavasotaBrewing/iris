@@ -1,129 +1,60 @@
-//! Execute the Iris server
-#![feature(trivial_bounds)]
-
-use std::sync::Arc;
-use tokio::{sync::Mutex};
-use env_logger::Env;
-use gotham::{
-    middleware::state::StateMiddleware,
-    pipeline::{new_pipeline, single_pipeline},
-    router::{build_router, Router},
-    state::StateData,
-};
-use gotham_restful::{cors::*, *};
-use hyper::header::CONTENT_TYPE;
-use log::*;
-
-use brewdrivers::{
-    drivers::InstrumentError,
-    model::RTU,
-};
-
-/// Same as in lib.rs
 pub const CONFIG_FILE: &'static str = "/etc/NavasotaBrewing/rtu_conf.yaml";
 
-mod error;
-mod resources;
-mod resp;
+use std::{sync::Arc, collections::HashMap};
 
-#[derive(Clone, StateData)]
-struct RTUState {
-    inner: Arc<Mutex<RTU>>,
-}
+use brewdrivers::model::RTU;
+use env_logger::Env;
+use log::*;
+use tokio::sync::Mutex;
+use warp::{ws::Message, Filter};
 
-impl std::panic::RefUnwindSafe for RTUState {}
+mod ws;
+mod handlers;
 
-impl RTUState {
-    fn new() -> Self {
-        Self {
-            inner: Arc::new(Mutex::new(
-                // TODO: Error handling
-                RTU::generate(None).unwrap(),
-            )),
-        }
-    }
-
-    async fn update(&self) -> Result<(), InstrumentError> {
-        let mut r = self.inner.lock().await;
-        (*r).update().await?;
-        Ok(())
-    }
-
-    /// This function is extremely costly and you shouldn't use it. Instead, 
-    /// call `Device::enact()` on only the devices that need it
-    #[deprecated = "This is too costly, use `brewdrivers::model::Device::enact()` instead"]
-    #[allow(dead_code)]
-    async fn enact(&self) -> Result<(), InstrumentError> {
-        let mut r = self.inner.lock().await;
-        (*r).enact().await
-    }
-}
-
-fn router() -> Router {
-    let cors = CorsConfig {
-        origin: Origin::Copy,
-        headers: Headers::List(vec![CONTENT_TYPE]),
-        max_age: 0,
-        credentials: true,
-    };
-
-    let rtu = RTUState::new();
-
-    let middleware = StateMiddleware::new(rtu);
-
-    let (chain, pipelines) = single_pipeline(new_pipeline().add(cors).add(middleware).build());
-
-    build_router(chain, pipelines, |route| {
-        route.resource::<resources::DeviceResource>("device");
-        route.resource::<resources::RTUResource>("rtu");
-    })
-}
-
-pub fn main() {
+#[tokio::main]
+async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    info!("Starting IRIS web server");
+    info!("Starting IRIS WebSocket server");
 
-    gotham::start("127.0.0.1:7878", router()).expect("Failed to start gotham");
-}
+    let ws_clients: ws::Clients = Arc::new(Mutex::new(HashMap::new()));
+    let mut rtu = RTU::generate(None).unwrap();
 
-#[cfg(test)]
-pub(crate) mod tests {
-    use super::*;
-    use serde::Serialize;
-    use env_logger::Env;
-    use gotham::{test::{TestResponse, TestServer}, mime};
+    let register = warp::path("register");
+    let register_routes = register
+        .and(warp::get())
+        .and(handlers::with_clients(ws_clients.clone()))
+        .and_then(handlers::register_handler)
+        .or(register
+            .and(warp::delete())
+            .and(warp::path::param())
+            .and(handlers::with_clients(ws_clients.clone()))
+            .and_then(handlers::unregister_handler));
 
-    // Enable env_logger in tests
-    #[ctor::ctor]
-    fn init() {
-        env_logger::Builder::from_env(Env::default().default_filter_or("nbc_iris=warn")).init();
-    }
+    let ws_routes = warp::path("ws")
+        .and(warp::ws())
+        .and(warp::path::param())
+        .and(handlers::with_clients(ws_clients.clone()))
+        .and_then(handlers::ws_handler);
 
-    // The following methods are used as helper methods in
-    // the other modules' tests
-    pub fn addr(uri: &str) -> String {
-        format!("http://localhost:7878/{}", uri)
-    }
+    // At a regular interval, update all clients with their state
+    tokio::task::spawn(async move {
+        loop {
+            tokio::time::sleep(ws::CLIENT_UPDATE_INTERVAL).await;
+            rtu.update().await.unwrap();
+            for (_, client) in ws_clients.lock().await.iter() {
+                if let Some(sender) = &client.sender {
+                    info!("updating client with RTU state: {}", client.client_id);
+                    sender
+                        .send(Ok(Message::text(serde_json::to_string(&rtu).unwrap())))
+                        .unwrap();
+                }
+            }
+        }
+    });
 
-    pub fn resp_to_string(resp: TestResponse) -> String {
-        String::from_utf8(resp.read_body().unwrap()).unwrap()
-    }
+    let routes = register_routes
+        .or(ws_routes)
+        .with(warp::cors().allow_any_origin());
 
-    pub(crate) fn get(uri: &str) -> TestResponse {
-        let test_server = TestServer::new(router()).unwrap();
-        test_server
-            .client()
-            .get(addr(uri))
-            .perform()
-            .unwrap()
-    }
-
-    pub(crate) fn post<T: Serialize>(uri: &str, body: T) -> TestResponse {
-        let test_server = TestServer::new(router()).unwrap();
-        test_server
-            .client()
-            .post(addr(uri), serde_json::to_string(&body).unwrap(), mime::APPLICATION_JSON)
-            .perform()
-            .unwrap()
-    }
+    warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
 }

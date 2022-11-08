@@ -14,15 +14,16 @@ $ cargo install nbc_iris
 
 The primary function of this crate is to run the Iris web server. Do that by calling the installed executable
 
-```
-$ nbc_iris
+```text
+nbc_iris
 ```
 
 ### Configuration Validation
+
 This crate can also read your configuration file and tell you if there's any errors in it. Write you configuration file [according to this guide](https://github.com/NavasotaBrewing/documentation/blob/master/RTU_Configuration/configuration.md) and run this crate with
 
-```
-$ nbc_iris validate-config
+```text
+nbc_iris validate-config
 ```
 
 Your config will be automatically validated when the server starts, but this way you can know ahead of time.
