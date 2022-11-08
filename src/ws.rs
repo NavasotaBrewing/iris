@@ -1,12 +1,8 @@
 //! WebSocket details
 
-use brewdrivers::drivers::InstrumentError;
 use log::*;
-use warp::{Rejection, Reply};
-use warp::reject::Reject;
 use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
-
 
 use futures::{FutureExt, StreamExt};
 use serde::{Deserialize, Serialize};
