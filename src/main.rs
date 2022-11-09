@@ -42,15 +42,23 @@ async fn main() {
 
     // At a regular interval, update all clients with their state
     tokio::task::spawn(async move {
+        // no panics in this thread!
         loop {
             tokio::time::sleep(ws::CLIENT_UPDATE_INTERVAL).await;
-            rtu.update().await.unwrap();
+            
+            if let Err(e) = rtu.update().await {
+                // Print, but don't panic
+                // We don't want to kill this thread or else clients stop getting updated
+                error!("{}", e);
+            };
+
             for (_, client) in ws_clients.lock().await.iter() {
                 if let Some(sender) = &client.sender {
                     info!("updating client with RTU state: {}", client.client_id);
-                    sender.send(Ok(
-                        EventResponse::rtu(&rtu).to_msg()
-                    )).unwrap();
+                    if let Err(e) = sender.send(Ok(EventResponse::rtu(&rtu).to_msg())) {
+                        // Same as above
+                        error!("{}", e);
+                    }
                 }
             }
         }
