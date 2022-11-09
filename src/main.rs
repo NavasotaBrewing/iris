@@ -6,10 +6,14 @@ use brewdrivers::model::RTU;
 use env_logger::Env;
 use log::*;
 use tokio::sync::Mutex;
-use warp::{ws::Message, Filter};
+use warp::Filter;
+
+use crate::response::EventResponse;
 
 mod ws;
 mod handlers;
+mod event;
+mod response;
 
 #[tokio::main]
 async fn main() {
@@ -44,9 +48,9 @@ async fn main() {
             for (_, client) in ws_clients.lock().await.iter() {
                 if let Some(sender) = &client.sender {
                     info!("updating client with RTU state: {}", client.client_id);
-                    sender
-                        .send(Ok(Message::text(serde_json::to_string(&rtu).unwrap())))
-                        .unwrap();
+                    sender.send(Ok(
+                        EventResponse::rtu(&rtu).to_msg()
+                    )).unwrap();
                 }
             }
         }
@@ -56,5 +60,5 @@ async fn main() {
         .or(ws_routes)
         .with(warp::cors().allow_any_origin());
 
-    warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
+    warp::serve(routes).run(([127, 0, 0, 1], 3012)).await;
 }

@@ -25,7 +25,7 @@ pub async fn register_handler(clients: Clients) -> Result<impl Reply> {
     info!("Just registered a client with id: {}", uuid);
     info!("All clients: {:#?}", clients);
     Ok(json(&RegisterResponse {
-        url: format!("ws://127.0.0.1:8000/ws/{}", uuid),
+        url: format!("ws://127.0.0.1:3012/ws/{}", uuid),
     }))
 }
 
