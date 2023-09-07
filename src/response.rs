@@ -2,7 +2,10 @@
 
 use serde::Serialize;
 
-use brewdrivers::{model::{Device, RTU}, drivers::InstrumentError};
+use brewdrivers::{
+    drivers::InstrumentError,
+    model::{Device, RTU},
+};
 use warp::ws::Message;
 
 /// The valid types of a response
@@ -19,7 +22,7 @@ pub(crate) enum EventResponseType {
 pub(crate) enum ResponseData<'a> {
     Device(Device),
     RTU(&'a RTU),
-    None
+    None,
 }
 
 /// A response payload
@@ -27,16 +30,20 @@ pub(crate) enum ResponseData<'a> {
 pub(crate) struct EventResponse<'a> {
     response_type: EventResponseType,
     message: Option<String>,
-    data: ResponseData<'a>
+    data: ResponseData<'a>,
 }
 
 impl<'a> EventResponse<'a> {
     /// Creates a new event response
-    pub(crate) fn new(response_type: EventResponseType, message: Option<String>, data: ResponseData<'a>) -> Self {
+    pub(crate) fn new(
+        response_type: EventResponseType,
+        message: Option<String>,
+        data: ResponseData<'a>,
+    ) -> Self {
         Self {
             response_type,
             message,
-            data
+            data,
         }
     }
 
@@ -45,21 +52,29 @@ impl<'a> EventResponse<'a> {
         Self {
             response_type: EventResponseType::Error,
             message: Some(message),
-            data
+            data,
         }
     }
 
-    /// Creates a new event response holding an RTU 
+    /// Creates a new event response holding an RTU
     pub(crate) fn rtu(rtu: &'a RTU) -> Self {
         Self {
             response_type: EventResponseType::RTUUpdateResult,
             message: None,
-            data: ResponseData::RTU(rtu)
+            data: ResponseData::RTU(rtu),
         }
     }
 
     pub(crate) fn to_msg(&self) -> Message {
         Message::text(serde_json::to_string(self).unwrap())
+    }
+
+    pub(crate) fn response_type(&self) -> &EventResponseType {
+        &self.response_type
+    }
+
+    pub(crate) fn message(&self) -> Option<&str> {
+        self.message.as_deref()
     }
 }
 
@@ -68,3 +83,4 @@ impl<'a> From<InstrumentError> for EventResponse<'a> {
         Self::error(format!("Instrument error: {e}"), ResponseData::None)
     }
 }
+

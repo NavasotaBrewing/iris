@@ -8,6 +8,7 @@ use warp::Filter;
 
 use crate::response::EventResponse;
 
+pub mod defaults;
 mod event;
 mod handlers;
 mod response;

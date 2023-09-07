@@ -10,7 +10,7 @@ use tokio::sync::{mpsc, Mutex};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::ws::{Message, WebSocket};
 
-use crate::event::{Event, EventType};
+use crate::event::{Event, EventList, EventType};
 use crate::response::{EventResponse, EventResponseType, ResponseData};
 
 pub(crate) type Clients = Arc<Mutex<HashMap<String, Client>>>;
@@ -98,7 +98,14 @@ async fn client_msg(msg: Message) -> Result<Message, warp::Error> {
         }
     };
 
+    // Try to deserialize an event list. If we can't just ignore and try a single event
+    if let Ok(event_list) = serde_json::from_str::<EventList>(&message) {
+        // Now we have an EventList
+        return Ok(handle_event_list(event_list).await.to_msg());
+    }
+
     // Deserialize the Event and handle it
+    // If this fails, return an error
     match serde_json::from_str(&message) {
         // Get the returned EventResponse and convert it to a Result<Message>
         Ok(event) => return Ok(handle_event(event).await.to_msg()),
@@ -109,7 +116,53 @@ async fn client_msg(msg: Message) -> Result<Message, warp::Error> {
     };
 }
 
+/// Handles a list of events one by one, with a delay between each
+async fn handle_event_list<'a>(event_list: EventList) -> EventResponse<'a> {
+    let len = event_list.events.len();
+    info!("Received event list with {} items", len);
+
+    let delay = Duration::from_millis(event_list.time_between as u64);
+    for event in event_list.events {
+        if event_list.halt_if_error {
+            // If they want to halt if any event fails, then we do something different
+            // Get a copy of the device in case in fails (TODO: make this more efficient)
+            let device_copy = event.device.clone();
+            // Handle the event, and match for an error
+            let resp = handle_event(event).await;
+            match resp.response_type() {
+                EventResponseType::Error => {
+                    let error_msg = format!(
+                        "An event caused an error, and halt_if_error = true, so halting. Error: {:?}. The errored device is attached",
+                        resp.message().unwrap_or("unknown")
+                    );
+                    return EventResponse::error(error_msg, ResponseData::Device(device_copy));
+                }
+                _ => {}
+            }
+        } else {
+            // If they don't want to halt if there's an error, just handle it and do nothing
+            handle_event(event).await;
+        }
+
+        // TODO: this will also add a delay after the last event is trigger before a response
+        // That's not good
+        tokio::time::sleep(delay).await;
+    }
+
+    return EventResponse::new(
+        EventResponseType::DeviceEnactResult,
+        Some(format!("{len} events from event list enacted")),
+        ResponseData::None,
+    );
+}
+
 async fn handle_event<'a>(mut event: Event) -> EventResponse<'a> {
+    trace!(
+        "Triggering event on device {} with state {:?}",
+        event.device.id,
+        event.device.state
+    );
+
     // update/enact the device based on event type
     let res: EventResponse = match event.event_type {
         EventType::DeviceEnact => {
