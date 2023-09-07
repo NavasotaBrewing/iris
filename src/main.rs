@@ -1,6 +1,4 @@
-pub const CONFIG_FILE: &'static str = "/etc/NavasotaBrewing/rtu_conf.yaml";
-
-use std::{sync::Arc, collections::HashMap};
+use std::{collections::HashMap, sync::Arc};
 
 use brewdrivers::model::RTU;
 use env_logger::Env;
@@ -10,10 +8,10 @@ use warp::Filter;
 
 use crate::response::EventResponse;
 
-mod ws;
-mod handlers;
 mod event;
+mod handlers;
 mod response;
+mod ws;
 
 #[tokio::main]
 async fn main() {
@@ -45,7 +43,7 @@ async fn main() {
         // no panics in this thread!
         loop {
             tokio::time::sleep(ws::CLIENT_UPDATE_INTERVAL).await;
-            
+
             if let Err(e) = rtu.update().await {
                 // Print, but don't panic
                 // We don't want to kill this thread or else clients stop getting updated

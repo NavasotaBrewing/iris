@@ -39,16 +39,17 @@ pub async fn client_connection(ws: WebSocket, id: String, clients: Clients, mut 
 
     client.sender = Some(client_sender);
     clients.lock().await.insert(id.clone(), client.clone());
-    
+
     info!("{} connected", id);
     // Once they're connected, go ahead and send them the RTU state
     // so they don't have to wait for the next pass
     let mut rtu = RTU::generate(None).unwrap();
     rtu.update().await.unwrap();
-    client.sender.unwrap().send(
-        Ok(EventResponse::rtu(&rtu).to_msg())
-    ).unwrap();
-    
+    client
+        .sender
+        .unwrap()
+        .send(Ok(EventResponse::rtu(&rtu).to_msg()))
+        .unwrap();
 
     // For each message
     while let Some(result) = client_ws_rcv.next().await {

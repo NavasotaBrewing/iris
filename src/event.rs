@@ -1,8 +1,8 @@
 //! Events are incoming messages through the websocket
 //! The opposite of EventResponse
 
-use serde::{Serialize, Deserialize};
 use brewdrivers::model::Device;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum EventType {
@@ -14,5 +14,5 @@ pub enum EventType {
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Event {
     pub event_type: EventType,
-    pub device: Device
+    pub device: Device,
 }
