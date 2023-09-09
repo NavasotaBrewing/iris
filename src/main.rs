@@ -43,7 +43,7 @@ async fn main() {
     tokio::task::spawn(async move {
         // no panics in this thread!
         loop {
-            tokio::time::sleep(ws::CLIENT_UPDATE_INTERVAL).await;
+            tokio::time::sleep(defaults::client_update_interval()).await;
 
             if let Err(e) = rtu.update().await {
                 // Print, but don't panic

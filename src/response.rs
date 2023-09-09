@@ -20,7 +20,9 @@ pub(crate) enum EventResponseType {
 /// A wrapper around the types of data we may want to attach to a response payload
 #[derive(Debug, Serialize)]
 pub(crate) enum ResponseData<'a> {
-    Device(Device),
+    // Rename to 'devices' for consistency
+    #[serde(rename = "devices")]
+    Devices(Vec<Device>),
     RTU(&'a RTU),
     None,
 }
@@ -28,9 +30,9 @@ pub(crate) enum ResponseData<'a> {
 /// A response payload
 #[derive(Debug, Serialize)]
 pub(crate) struct EventResponse<'a> {
-    response_type: EventResponseType,
-    message: Option<String>,
-    data: ResponseData<'a>,
+    pub response_type: EventResponseType,
+    pub message: Option<String>,
+    pub data: ResponseData<'a>,
 }
 
 impl<'a> EventResponse<'a> {
@@ -68,14 +70,6 @@ impl<'a> EventResponse<'a> {
     pub(crate) fn to_msg(&self) -> Message {
         Message::text(serde_json::to_string(self).unwrap())
     }
-
-    pub(crate) fn response_type(&self) -> &EventResponseType {
-        &self.response_type
-    }
-
-    pub(crate) fn message(&self) -> Option<&str> {
-        self.message.as_deref()
-    }
 }
 
 impl<'a> From<InstrumentError> for EventResponse<'a> {
@@ -83,4 +77,3 @@ impl<'a> From<InstrumentError> for EventResponse<'a> {
         Self::error(format!("Instrument error: {e}"), ResponseData::None)
     }
 }
-
