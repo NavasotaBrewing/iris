@@ -1,6 +1,6 @@
 [package]
 name = "nbc_iris"
-version = "0.7.2"
+version = "0.8.0"
 edition = "2021"
 description = "The networking component of the brewery control system"
 license = "MIT"
