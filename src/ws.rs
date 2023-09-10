@@ -42,12 +42,26 @@ pub async fn client_connection(ws: WebSocket, id: String, clients: Clients, mut 
     // Once they're connected, go ahead and send them the RTU state
     // so they don't have to wait for the next pass
     let mut rtu = RTU::generate(None).unwrap();
-    rtu.update().await.unwrap();
-    client
-        .sender
-        .unwrap()
-        .send(Ok(EventResponse::rtu(&rtu).to_msg()))
-        .unwrap();
+    match rtu.update().await {
+        Ok(_) => {
+            client
+                .sender
+                .unwrap()
+                .send(Ok(EventResponse::rtu(&rtu).to_msg()))
+                .unwrap();
+        }
+        Err(_) => {
+            client
+                .sender
+                .unwrap()
+                .send(Ok(EventResponse::error(
+                    format!("Couldn't update RTU when initializing"),
+                    ResponseData::RTU(&rtu),
+                )
+                .to_msg()))
+                .unwrap();
+        }
+    }
 
     // For each message
     while let Some(result) = client_ws_rcv.next().await {
