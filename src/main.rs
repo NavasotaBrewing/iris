@@ -6,7 +6,7 @@ use log::*;
 use tokio::sync::Mutex;
 use warp::Filter;
 
-use crate::response::EventResponse;
+use crate::{response::EventResponse, ws::Clients};
 
 pub mod defaults;
 mod event;
@@ -20,7 +20,7 @@ async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     info!("Starting IRIS WebSocket server");
 
-    let ws_clients: ws::Clients = Arc::new(Mutex::new(HashMap::new()));
+    let ws_clients: ws::Clients = Clients(Arc::new(Mutex::new(HashMap::new())));
     let mut rtu = RTU::generate(None).unwrap();
 
     let register = warp::path("register");
@@ -52,7 +52,7 @@ async fn main() {
                 error!("{}", e);
             };
 
-            for (_, client) in ws_clients.lock().await.iter() {
+            for (_, client) in ws_clients.0.lock().await.iter() {
                 if let Some(sender) = &client.sender {
                     info!("updating client with RTU state: {}", client.client_id);
                     if let Err(e) = sender.send(Ok(EventResponse::rtu(&rtu).to_msg())) {

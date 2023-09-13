@@ -22,17 +22,7 @@ pub async fn handle_event<'a>(event: Event, clients: &Clients, client_id: &str) 
         EventType::DeviceUpdate => handle_device_update(event).await,
     };
 
-    let c = clients.lock().await;
-    match c.get(client_id) {
-        Some(client) => {
-            if let Some(sender) = &client.sender {
-                sender.send(Ok(response.to_msg())).unwrap();
-            }
-        }
-        None => {
-            error!("couldn't find client registered with that id: {client_id}");
-        }
-    }
+    clients.send_event_to(response, client_id).await;
 }
 
 async fn handle_device_update<'a>(event: Event) -> EventResponse<'a> {

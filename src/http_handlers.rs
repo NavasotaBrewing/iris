@@ -9,7 +9,7 @@ use warp::hyper::StatusCode;
 use warp::reply::{json, Reply};
 use warp::{Filter, Rejection};
 
-use crate::ws::{self, Client, Clients};
+use crate::ws::{self, Client, ClientList, Clients};
 use log::*;
 
 type Result<T> = std::result::Result<T, Rejection>;
@@ -28,7 +28,7 @@ pub(crate) struct RegisterResponse {
 pub async fn register_handler(clients: Clients) -> Result<impl Reply> {
     let uuid = Uuid::new_v4().simple().to_string();
     // TODO: Can we avoid this clone?
-    add_client(uuid.clone(), clients.clone()).await;
+    add_client(uuid.clone(), clients.0.clone()).await;
     info!("Just registered a client with id: {}", uuid);
     info!("All clients: {:#?}", clients);
     Ok(json(&RegisterResponse {
@@ -37,7 +37,7 @@ pub async fn register_handler(clients: Clients) -> Result<impl Reply> {
 }
 
 // Registers a client, adding them to the client list
-pub async fn add_client(uuid: String, clients: Clients) {
+pub async fn add_client(uuid: String, clients: ClientList) {
     clients.lock().await.insert(
         uuid.clone(),
         Client {
@@ -49,14 +49,14 @@ pub async fn add_client(uuid: String, clients: Clients) {
 
 // Delete a client from the client list
 pub async fn unregister_handler(id: String, clients: Clients) -> Result<impl Reply> {
-    clients.lock().await.remove(&id);
+    clients.0.lock().await.remove(&id);
     info!("Client disconnected: {}", id);
     Ok(StatusCode::OK)
 }
 
 // Attempt to find a client from the list, and if so connect a websocket
 pub async fn ws_handler(ws: warp::ws::Ws, id: String, clients: Clients) -> Result<impl Reply> {
-    let client = clients.lock().await.get(&id).cloned();
+    let client = clients.0.lock().await.get(&id).cloned();
     match client {
         Some(c) => Ok(ws.on_upgrade(move |socket| ws::client_connection(socket, id, clients, c))),
         None => Err(warp::reject::not_found()),
