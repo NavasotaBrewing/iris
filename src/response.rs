@@ -10,7 +10,7 @@ use warp::ws::Message;
 
 /// The valid types of a response
 #[derive(Debug, Serialize)]
-pub(crate) enum EventResponseType {
+pub enum EventResponseType {
     Error,
     DeviceUpdateResult,
     DeviceEnactResult,
@@ -19,7 +19,7 @@ pub(crate) enum EventResponseType {
 
 /// A wrapper around the types of data we may want to attach to a response payload
 #[derive(Debug, Serialize)]
-pub(crate) enum ResponseData<'a> {
+pub enum ResponseData<'a> {
     // Rename to 'devices' for consistency
     #[serde(rename = "devices")]
     Devices(Vec<Device>),
@@ -29,7 +29,7 @@ pub(crate) enum ResponseData<'a> {
 
 /// A response payload
 #[derive(Debug, Serialize)]
-pub(crate) struct EventResponse<'a> {
+pub struct EventResponse<'a> {
     pub response_type: EventResponseType,
     pub message: Option<String>,
     pub data: ResponseData<'a>,

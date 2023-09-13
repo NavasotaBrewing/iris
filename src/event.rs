@@ -15,7 +15,7 @@ pub enum EventType {
 
 /// An incoming websocket event
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Event {
+pub struct Event {
     pub event_type: EventType,
     // Usually this will just be one device, but it's a list to give
     // the opportunity to operate on multi devices at once

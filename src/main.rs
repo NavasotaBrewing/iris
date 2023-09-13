@@ -10,9 +10,10 @@ use crate::response::EventResponse;
 
 pub mod defaults;
 mod event;
-mod handlers;
+mod http_handlers;
 mod response;
 mod ws;
+mod ws_handlers;
 
 #[tokio::main]
 async fn main() {
@@ -25,21 +26,21 @@ async fn main() {
     let register = warp::path("register");
     let register_routes = register
         .and(warp::get())
-        .and(handlers::with_clients(ws_clients.clone()))
-        .and_then(handlers::register_handler)
+        .and(http_handlers::with_clients(ws_clients.clone()))
+        .and_then(http_handlers::register_handler)
         .or(register
             .and(warp::delete())
             .and(warp::path::param())
-            .and(handlers::with_clients(ws_clients.clone()))
-            .and_then(handlers::unregister_handler));
+            .and(http_handlers::with_clients(ws_clients.clone()))
+            .and_then(http_handlers::unregister_handler));
 
     let ws_routes = warp::path("ws")
         .and(warp::ws())
         .and(warp::path::param())
-        .and(handlers::with_clients(ws_clients.clone()))
-        .and_then(handlers::ws_handler);
+        .and(http_handlers::with_clients(ws_clients.clone()))
+        .and_then(http_handlers::ws_handler);
 
-    // At a regular interval, update all clients with their state
+    // At a regular interval, update all clients with this RTUs state
     tokio::task::spawn(async move {
         // no panics in this thread!
         loop {

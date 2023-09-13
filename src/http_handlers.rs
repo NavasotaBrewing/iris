@@ -1,11 +1,13 @@
 //! Basic Route handlers
+//!
+//! These are for the routes + connecting websockets, not the actual websocket events themselves.
 
+use serde::Serialize;
+use std::convert::Infallible;
 use uuid::Uuid;
 use warp::hyper::StatusCode;
-use std::convert::Infallible;
 use warp::reply::{json, Reply};
-use warp::{Rejection, Filter};
-use serde::Serialize;
+use warp::{Filter, Rejection};
 
 use crate::ws::{self, Client, Clients};
 use log::*;
@@ -19,9 +21,14 @@ pub(crate) struct RegisterResponse {
 }
 
 // Register a new client and return the ws address with the client id in it
+// This generates a UUID for a client, add that UUID to the client list pointing
+// at an empty client (no socket connected). Later, we'll add a websocket connection
+// to that client.
+// TODO: Also send the RTU id for better event reporting on the interface
 pub async fn register_handler(clients: Clients) -> Result<impl Reply> {
     let uuid = Uuid::new_v4().simple().to_string();
-    register_client(uuid.clone(), clients.clone()).await;
+    // TODO: Can we avoid this clone?
+    add_client(uuid.clone(), clients.clone()).await;
     info!("Just registered a client with id: {}", uuid);
     info!("All clients: {:#?}", clients);
     Ok(json(&RegisterResponse {
@@ -30,7 +37,7 @@ pub async fn register_handler(clients: Clients) -> Result<impl Reply> {
 }
 
 // Registers a client, adding them to the client list
-pub async fn register_client(uuid: String, clients: Clients) {
+pub async fn add_client(uuid: String, clients: Clients) {
     clients.lock().await.insert(
         uuid.clone(),
         Client {
@@ -43,9 +50,9 @@ pub async fn register_client(uuid: String, clients: Clients) {
 // Delete a client from the client list
 pub async fn unregister_handler(id: String, clients: Clients) -> Result<impl Reply> {
     clients.lock().await.remove(&id);
+    info!("Client disconnected: {}", id);
     Ok(StatusCode::OK)
 }
-
 
 // Attempt to find a client from the list, and if so connect a websocket
 pub async fn ws_handler(ws: warp::ws::Ws, id: String, clients: Clients) -> Result<impl Reply> {
