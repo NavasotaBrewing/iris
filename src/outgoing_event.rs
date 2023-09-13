@@ -10,7 +10,7 @@ use warp::ws::Message;
 
 /// The valid types of a response
 #[derive(Debug, Serialize)]
-pub enum EventResponseType {
+pub enum OutgoingEventType {
     Error,
     DeviceUpdateResult,
     DeviceEnactResult,
@@ -19,7 +19,7 @@ pub enum EventResponseType {
 
 /// A wrapper around the types of data we may want to attach to a response payload
 #[derive(Debug, Serialize)]
-pub enum ResponseData<'a> {
+pub enum OutgoingData<'a> {
     // Rename to 'devices' for consistency
     #[serde(rename = "devices")]
     Devices(Vec<Device>),
@@ -29,18 +29,18 @@ pub enum ResponseData<'a> {
 
 /// A response payload
 #[derive(Debug, Serialize)]
-pub struct EventResponse<'a> {
-    pub response_type: EventResponseType,
+pub struct OutgoingEvent<'a> {
+    pub response_type: OutgoingEventType,
     pub message: Option<String>,
-    pub data: ResponseData<'a>,
+    pub data: OutgoingData<'a>,
 }
 
-impl<'a> EventResponse<'a> {
+impl<'a> OutgoingEvent<'a> {
     /// Creates a new event response
     pub(crate) fn new(
-        response_type: EventResponseType,
+        response_type: OutgoingEventType,
         message: Option<String>,
-        data: ResponseData<'a>,
+        data: OutgoingData<'a>,
     ) -> Self {
         Self {
             response_type,
@@ -50,9 +50,9 @@ impl<'a> EventResponse<'a> {
     }
 
     /// Creates a new event response, marked as an error
-    pub(crate) fn error(message: String, data: ResponseData<'a>) -> Self {
+    pub(crate) fn error(message: String, data: OutgoingData<'a>) -> Self {
         Self {
-            response_type: EventResponseType::Error,
+            response_type: OutgoingEventType::Error,
             message: Some(message),
             data,
         }
@@ -61,9 +61,9 @@ impl<'a> EventResponse<'a> {
     /// Creates a new event response holding an RTU
     pub(crate) fn rtu(rtu: &'a RTU) -> Self {
         Self {
-            response_type: EventResponseType::RTUUpdateResult,
+            response_type: OutgoingEventType::RTUUpdateResult,
             message: None,
-            data: ResponseData::RTU(rtu),
+            data: OutgoingData::RTU(rtu),
         }
     }
 
@@ -72,8 +72,8 @@ impl<'a> EventResponse<'a> {
     }
 }
 
-impl<'a> From<InstrumentError> for EventResponse<'a> {
+impl<'a> From<InstrumentError> for OutgoingEvent<'a> {
     fn from(e: InstrumentError) -> Self {
-        Self::error(format!("Instrument error: {e}"), ResponseData::None)
+        Self::error(format!("Instrument error: {e}"), OutgoingData::None)
     }
 }

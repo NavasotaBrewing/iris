@@ -3,13 +3,13 @@ use log::*;
 use std::time::Duration;
 
 use crate::clients::Clients;
-use crate::event::{Event, EventType};
-use crate::response::{EventResponse, EventResponseType, ResponseData};
+use crate::incoming_event::{IncomingEvent, IncomingEventType};
+use crate::outgoing_event::{OutgoingData, OutgoingEvent, OutgoingEventType};
 
-pub async fn handle_event<'a>(event: Event, clients: &Clients, _client_id: &str) {
+pub async fn handle_event<'a>(event: IncomingEvent, clients: &Clients, _client_id: &str) {
     // Log the incoming event
     info!(
-        "Received event type {:?} with {} devices attached",
+        "Received incoming event type {:?} with {} devices attached",
         event.event_type,
         event.devices.len()
     );
@@ -18,8 +18,8 @@ pub async fn handle_event<'a>(event: Event, clients: &Clients, _client_id: &str)
     }
 
     let response = match event.event_type {
-        EventType::DeviceEnact => handle_device_enact(event).await,
-        EventType::DeviceUpdate => handle_device_update(event).await,
+        IncomingEventType::DeviceEnact => handle_device_enact(event).await,
+        IncomingEventType::DeviceUpdate => handle_device_update(event).await,
     };
 
     // Send the update/enact result to all clients.
@@ -34,7 +34,7 @@ pub async fn handle_event<'a>(event: Event, clients: &Clients, _client_id: &str)
     clients.send_to_all(response).await;
 }
 
-async fn handle_device_update<'a>(event: Event) -> EventResponse<'a> {
+async fn handle_device_update<'a>(event: IncomingEvent) -> OutgoingEvent<'a> {
     // Note: this method and handle_device_enact are very similar
     // I'm keeping them as separate functions because they might
     // diverge later.
@@ -46,7 +46,7 @@ async fn handle_device_update<'a>(event: Event) -> EventResponse<'a> {
             event.devices.len()
         );
         error!("{}", error_msg);
-        return EventResponse::error(error_msg, ResponseData::Devices(event.devices));
+        return OutgoingEvent::error(error_msg, OutgoingData::Devices(event.devices));
     }
 
     // The devices to include in the response
@@ -75,24 +75,24 @@ async fn handle_device_update<'a>(event: Event) -> EventResponse<'a> {
             "{} devices encountered errors. See logs for more details.",
             error_devices.len()
         );
-        return EventResponse::error(error_msg, ResponseData::Devices(error_devices));
+        return OutgoingEvent::error(error_msg, OutgoingData::Devices(error_devices));
     } else {
         // Return a success
         let success_message = format!("{} devices updated successfully", response_devices.len());
         info!("{success_message}");
-        return EventResponse::new(
-            EventResponseType::DeviceUpdateResult,
+        return OutgoingEvent::new(
+            OutgoingEventType::DeviceUpdateResult,
             Some(success_message),
-            ResponseData::Devices(response_devices),
+            OutgoingData::Devices(response_devices),
         );
     }
 }
-async fn handle_device_enact<'a>(event: Event) -> EventResponse<'a> {
+async fn handle_device_enact<'a>(event: IncomingEvent) -> OutgoingEvent<'a> {
     // If they don't provide at least one device, return an error
     if event.devices.len() < 1 {
         let error_msg = format!("Got DeviceEnact event with {} devices", event.devices.len());
         error!("{}", error_msg);
-        return EventResponse::error(error_msg, ResponseData::Devices(event.devices));
+        return OutgoingEvent::error(error_msg, OutgoingData::Devices(event.devices));
     }
 
     // The devices to include in the response
@@ -133,15 +133,15 @@ async fn handle_device_enact<'a>(event: Event) -> EventResponse<'a> {
             "{} devices encountered errors. See logs for more details.",
             error_devices.len()
         );
-        return EventResponse::error(error_msg, ResponseData::Devices(error_devices));
+        return OutgoingEvent::error(error_msg, OutgoingData::Devices(error_devices));
     } else {
         // Return a success
         let success_message = format!("{} devices enacted successfully", response_devices.len());
         info!("{success_message}");
-        return EventResponse::new(
-            EventResponseType::DeviceEnactResult,
+        return OutgoingEvent::new(
+            OutgoingEventType::DeviceEnactResult,
             Some(success_message),
-            ResponseData::Devices(response_devices),
+            OutgoingData::Devices(response_devices),
         );
     }
 }

@@ -12,7 +12,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::ws::{Message, WebSocket};
 
 use crate::clients::{Client, Clients};
-use crate::response::{EventResponse, ResponseData};
+use crate::outgoing_event::{OutgoingData, OutgoingEvent};
 use crate::ws_handlers;
 
 // Connects a client to a websocket
@@ -40,13 +40,13 @@ pub async fn client_connection(ws: WebSocket, id: String, clients: Clients, mut 
     // so they don't have to wait for the next pass
     let mut rtu = RTU::generate(None).unwrap();
     match rtu.update().await {
-        Ok(_) => clients.send_event_to(EventResponse::rtu(&rtu), &id).await,
+        Ok(_) => clients.send_event_to(OutgoingEvent::rtu(&rtu), &id).await,
         Err(e) => {
             clients
                 .send_event_to(
-                    EventResponse::error(
+                    OutgoingEvent::error(
                         format!("Couldn't update RTU when initializing: {e}"),
-                        ResponseData::RTU(&rtu),
+                        OutgoingData::RTU(&rtu),
                     ),
                     &id,
                 )

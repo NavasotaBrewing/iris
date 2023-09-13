@@ -6,13 +6,13 @@ use log::*;
 use tokio::sync::Mutex;
 use warp::Filter;
 
-use crate::{clients::Clients, response::EventResponse};
+use crate::{clients::Clients, outgoing_event::OutgoingEvent};
 
 mod clients;
 pub mod defaults;
-mod event;
 mod http_handlers;
-mod response;
+mod incoming_event;
+mod outgoing_event;
 mod ws;
 mod ws_handlers;
 
@@ -56,7 +56,7 @@ async fn main() {
             for (_, client) in ws_clients.0.lock().await.iter() {
                 if let Some(sender) = &client.sender {
                     info!("updating client with RTU state: {}", client.client_id);
-                    if let Err(e) = sender.send(Ok(EventResponse::rtu(&rtu).to_msg())) {
+                    if let Err(e) = sender.send(Ok(OutgoingEvent::rtu(&rtu).to_msg())) {
                         // Same as above
                         error!("{}", e);
                     }

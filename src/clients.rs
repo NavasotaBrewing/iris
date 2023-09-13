@@ -4,7 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc, Mutex};
 use warp::ws::Message;
 
-use crate::response::EventResponse;
+use crate::outgoing_event::OutgoingEvent;
 
 // Represents a websocket client
 #[derive(Clone, Debug)]
@@ -19,7 +19,7 @@ pub type ClientList = Arc<Mutex<HashMap<String, Client>>>;
 pub struct Clients(pub ClientList);
 
 impl Clients {
-    pub async fn send_event_to<'a>(&self, outgoing_event: EventResponse<'a>, client_id: &str) {
+    pub async fn send_event_to<'a>(&self, outgoing_event: OutgoingEvent<'a>, client_id: &str) {
         match self.0.lock().await.get(client_id) {
             Some(client) => {
                 if let Some(sender) = &client.sender {
@@ -34,7 +34,7 @@ impl Clients {
         }
     }
 
-    pub async fn send_to_all<'a>(&self, outgoing_event: EventResponse<'a>) {
+    pub async fn send_to_all<'a>(&self, outgoing_event: OutgoingEvent<'a>) {
         let client_list = self.0.lock().await;
         for (id, client) in client_list.iter() {
             if let Some(sender) = &client.sender {

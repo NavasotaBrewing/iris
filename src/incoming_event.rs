@@ -8,15 +8,15 @@ use brewdrivers::model::Device;
 use crate::defaults::{default_time_between, halt_events_if_error};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum EventType {
+pub enum IncomingEventType {
     DeviceEnact,
     DeviceUpdate,
 }
 
 /// An incoming websocket event
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Event {
-    pub event_type: EventType,
+pub struct IncomingEvent {
+    pub event_type: IncomingEventType,
     // Usually this will just be one device, but it's a list to give
     // the opportunity to operate on multi devices at once
     pub devices: Vec<Device>,
