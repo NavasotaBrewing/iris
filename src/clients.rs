@@ -23,7 +23,9 @@ impl Clients {
         match self.0.lock().await.get(client_id) {
             Some(client) => {
                 if let Some(sender) = &client.sender {
-                    sender.send(Ok(outgoing_event.to_msg())).unwrap();
+                    if let Err(e) = sender.send(Ok(outgoing_event.to_msg())) {
+                        error!("Error sending message to client {client_id}: {e}");
+                    }
                 }
             }
             None => {
@@ -34,9 +36,11 @@ impl Clients {
 
     pub async fn send_to_all<'a>(&self, outgoing_event: EventResponse<'a>) {
         let client_list = self.0.lock().await;
-        for (_, client) in client_list.iter() {
+        for (id, client) in client_list.iter() {
             if let Some(sender) = &client.sender {
-                sender.send(Ok(outgoing_event.to_msg())).unwrap();
+                if let Err(e) = sender.send(Ok(outgoing_event.to_msg())) {
+                    error!("Error sending message to client {id}: {e}");
+                }
             }
         }
     }

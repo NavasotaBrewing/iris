@@ -6,7 +6,7 @@ use crate::clients::Clients;
 use crate::event::{Event, EventType};
 use crate::response::{EventResponse, EventResponseType, ResponseData};
 
-pub async fn handle_event<'a>(event: Event, clients: &Clients, client_id: &str) {
+pub async fn handle_event<'a>(event: Event, clients: &Clients, _client_id: &str) {
     // Log the incoming event
     info!(
         "Received event type {:?} with {} devices attached",
@@ -22,7 +22,16 @@ pub async fn handle_event<'a>(event: Event, clients: &Clients, client_id: &str) 
         EventType::DeviceUpdate => handle_device_update(event).await,
     };
 
-    clients.send_event_to(response, client_id).await;
+    // Send the update/enact result to all clients.
+    // This is so that when one client changes a device state, all the other
+    // clients will also update immediately without having to wait for the next
+    // periodic RTU update.
+    //
+    // Essentially, if you only change device states from a client, every client
+    // *should* be in sync. The periodic updates are just to make sure of that,
+    // because of Murphy's Law.
+    info!("Event handled, sending a response event to all clients");
+    clients.send_to_all(response).await;
 }
 
 async fn handle_device_update<'a>(event: Event) -> EventResponse<'a> {
