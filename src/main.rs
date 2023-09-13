@@ -6,8 +6,9 @@ use log::*;
 use tokio::sync::Mutex;
 use warp::Filter;
 
-use crate::{response::EventResponse, ws::Clients};
+use crate::{clients::Clients, response::EventResponse};
 
+mod clients;
 pub mod defaults;
 mod event;
 mod http_handlers;
@@ -20,7 +21,7 @@ async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     info!("Starting IRIS WebSocket server");
 
-    let ws_clients: ws::Clients = Clients(Arc::new(Mutex::new(HashMap::new())));
+    let ws_clients: Clients = Clients(Arc::new(Mutex::new(HashMap::new())));
     let mut rtu = RTU::generate(None).unwrap();
 
     let register = warp::path("register");

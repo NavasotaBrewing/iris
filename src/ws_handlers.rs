@@ -2,9 +2,9 @@ use brewdrivers::model::Device;
 use log::*;
 use std::time::Duration;
 
+use crate::clients::Clients;
 use crate::event::{Event, EventType};
 use crate::response::{EventResponse, EventResponseType, ResponseData};
-use crate::ws::Clients;
 
 pub async fn handle_event<'a>(event: Event, clients: &Clients, client_id: &str) {
     // Log the incoming event

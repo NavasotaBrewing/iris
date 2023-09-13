@@ -9,7 +9,8 @@ use warp::hyper::StatusCode;
 use warp::reply::{json, Reply};
 use warp::{Filter, Rejection};
 
-use crate::ws::{self, Client, ClientList, Clients};
+use crate::clients::{Client, ClientList, Clients};
+use crate::ws;
 use log::*;
 
 type Result<T> = std::result::Result<T, Rejection>;
