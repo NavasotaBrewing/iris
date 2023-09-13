@@ -12,6 +12,8 @@ use warp::ws::Message;
 #[derive(Debug, Serialize)]
 pub enum OutgoingEventType {
     Error,
+    Lock,
+    Unlock,
     DeviceUpdateResult,
     DeviceEnactResult,
     RTUUpdateResult,
@@ -64,6 +66,22 @@ impl<'a> OutgoingEvent<'a> {
             response_type: OutgoingEventType::RTUUpdateResult,
             message: None,
             data: OutgoingData::RTU(rtu),
+        }
+    }
+
+    pub(crate) fn lock() -> Self {
+        Self {
+            response_type: OutgoingEventType::Lock,
+            message: None,
+            data: OutgoingData::None,
+        }
+    }
+
+    pub(crate) fn unlock() -> Self {
+        Self {
+            response_type: OutgoingEventType::Unlock,
+            message: None,
+            data: OutgoingData::None,
         }
     }
 

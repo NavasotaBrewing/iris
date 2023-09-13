@@ -39,6 +39,8 @@ pub async fn client_connection(ws: WebSocket, id: String, clients: Clients, mut 
     // Once they're connected, go ahead and send them the RTU state
     // so they don't have to wait for the next pass
     let mut rtu = RTU::generate(None).unwrap();
+
+    clients.send_to_all(OutgoingEvent::lock()).await;
     match rtu.update().await {
         Ok(_) => clients.send_event_to(OutgoingEvent::rtu(&rtu), &id).await,
         Err(e) => {
@@ -53,6 +55,7 @@ pub async fn client_connection(ws: WebSocket, id: String, clients: Clients, mut 
                 .await
         }
     }
+    clients.send_to_all(OutgoingEvent::unlock()).await;
 
     // Then loop until they disconnect, sending messages to the handler
     while let Some(result) = client_ws_rcv.next().await {

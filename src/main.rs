@@ -47,11 +47,17 @@ async fn main() {
         loop {
             tokio::time::sleep(defaults::client_update_interval()).await;
 
+            // Send the lock event so the UI can lock itself and prevent
+            // actions briefly while we're updating
+            ws_clients.send_to_all(OutgoingEvent::lock()).await;
+
             if let Err(e) = rtu.update().await {
                 // Print, but don't panic
                 // We don't want to kill this thread or else clients stop getting updated
                 error!("{}", e);
             };
+
+            ws_clients.send_to_all(OutgoingEvent::unlock()).await;
 
             for (_, client) in ws_clients.0.lock().await.iter() {
                 if let Some(sender) = &client.sender {
