@@ -1,4 +1,4 @@
-use brewdrivers::model::Device;
+use brewdrivers::model::{Device, RTU};
 use log::*;
 use std::time::Duration;
 
@@ -22,6 +22,7 @@ pub async fn handle_event<'a>(event: IncomingEvent, clients: &Clients, _client_i
         IncomingEventType::DeviceEnact => handle_device_enact(event).await,
         IncomingEventType::DeviceUpdate => handle_device_update(event).await,
         IncomingEventType::RTUReset => handle_rtu_reset(event).await,
+        IncomingEventType::RTUEnact => handle_rtu_enact(event).await,
     };
     clients.send_to_all(OutgoingEvent::unlock()).await;
 
@@ -185,4 +186,27 @@ async fn handle_rtu_reset<'a>(mut _event: IncomingEvent) -> OutgoingEvent<'a> {
         None,
         OutgoingData::Devices(response_devices),
     );
+}
+
+async fn handle_rtu_enact<'a>(event: IncomingEvent) -> OutgoingEvent<'a> {
+    info!("Handling RTU Enact event");
+
+    if let Some(mut rtu) = event.RTU {
+        match rtu.enact().await {
+            Ok(_) => {
+                return OutgoingEvent::new(
+                    OutgoingEventType::RTUEnactResult,
+                    None,
+                    OutgoingData::None,
+                )
+            }
+            Err(e) => {
+                return OutgoingEvent::error(format!("Couldn't enact rtu: {e}"), OutgoingData::None)
+            }
+        }
+    } else {
+        let error_msg = "Couldn't enact RTU: there is no RTU attached to the message";
+        error!("{error_msg}");
+        return OutgoingEvent::error(error_msg.to_string(), OutgoingData::None);
+    }
 }
