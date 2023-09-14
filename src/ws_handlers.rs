@@ -1,4 +1,4 @@
-use brewdrivers::model::Device;
+use brewdrivers::model::{Device, RTU};
 use log::*;
 use std::time::Duration;
 
@@ -17,10 +17,13 @@ pub async fn handle_event<'a>(event: IncomingEvent, clients: &Clients, _client_i
         trace!("\tAttached device: {} ({})", device.id, device.name);
     }
 
+    clients.send_to_all(OutgoingEvent::lock()).await;
     let response = match event.event_type {
         IncomingEventType::DeviceEnact => handle_device_enact(event).await,
         IncomingEventType::DeviceUpdate => handle_device_update(event).await,
+        IncomingEventType::RTUReset => handle_rtu_reset(event).await,
     };
+    clients.send_to_all(OutgoingEvent::unlock()).await;
 
     // Send the update/enact result to all clients.
     // This is so that when one client changes a device state, all the other
@@ -87,6 +90,7 @@ async fn handle_device_update<'a>(event: IncomingEvent) -> OutgoingEvent<'a> {
         );
     }
 }
+
 async fn handle_device_enact<'a>(event: IncomingEvent) -> OutgoingEvent<'a> {
     // If they don't provide at least one device, return an error
     if event.devices.len() < 1 {
@@ -144,4 +148,41 @@ async fn handle_device_enact<'a>(event: IncomingEvent) -> OutgoingEvent<'a> {
             OutgoingData::Devices(response_devices),
         );
     }
+}
+
+async fn handle_rtu_reset<'a>(mut _event: IncomingEvent) -> OutgoingEvent<'a> {
+    // Generate an RTU from the configuration file.
+    // This will have all default device states, except where the user specifies a state in the
+    // config file.
+    let mut original = match crate::generate_rtu() {
+        Ok(original) => original,
+        Err(e) => {
+            return OutgoingEvent::error(
+                format!(
+                    "Couldn't generate default RTU state from config file: {e}. This is very unusual"
+                ),
+                OutgoingData::None,
+            );
+        }
+    };
+
+    if let Err(e) = original.enact().await {
+        error!("Couldn't reset RTU to default state: {e}");
+        return OutgoingEvent::error(
+            format!("Couldn't reset RTU to default state: {e}"),
+            OutgoingData::None,
+        );
+    }
+
+    // Create a vec of devices to return
+    let mut response_devices: Vec<Device> = Vec::new();
+    for device in original.devices {
+        response_devices.push(device);
+    }
+
+    return OutgoingEvent::new(
+        OutgoingEventType::DeviceEnactResult,
+        None,
+        OutgoingData::Devices(response_devices),
+    );
 }

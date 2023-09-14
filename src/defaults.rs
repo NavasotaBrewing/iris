@@ -12,3 +12,8 @@ pub fn halt_events_if_error() -> bool {
 pub fn client_update_interval() -> Duration {
     Duration::from_secs(25)
 }
+
+/// TODO: move this to brewdrivers
+pub fn default_rtu_state_config_file() -> &'static str {
+    "/etc/NavasotaBrewing/default.yaml"
+}

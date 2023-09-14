@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use brewdrivers::model::RTU;
+use brewdrivers::model::{ModelError, RTU};
 use env_logger::Env;
 use log::*;
 use tokio::sync::Mutex;
@@ -16,13 +16,25 @@ mod outgoing_event;
 mod ws;
 mod ws_handlers;
 
+// Wrap this function so that if we decide to later use
+// a custom config path, we only have to change it in one place
+pub fn generate_rtu() -> Result<RTU, ModelError> {
+    RTU::generate(None)
+}
+
 #[tokio::main]
 async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     info!("Starting IRIS WebSocket server");
 
     let ws_clients: Clients = Clients(Arc::new(Mutex::new(HashMap::new())));
-    let mut rtu = RTU::generate(None).unwrap();
+    let mut rtu = match generate_rtu() {
+        Ok(rtu) => rtu,
+        Err(e) => {
+            error!("Couldn't generate RTU from config file: {e}");
+            std::process::exit(1);
+        }
+    };
 
     let register = warp::path("register");
     let register_routes = register

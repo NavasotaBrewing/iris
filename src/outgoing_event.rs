@@ -17,6 +17,7 @@ pub enum OutgoingEventType {
     DeviceUpdateResult,
     DeviceEnactResult,
     RTUUpdateResult,
+    RTUResetResult,
 }
 
 /// A wrapper around the types of data we may want to attach to a response payload

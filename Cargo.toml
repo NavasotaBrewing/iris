@@ -22,8 +22,8 @@ futures = "0.3"
 uuid = {version = "1.2", features = ["v4"]}
 
 [dependencies.brewdrivers]
-# path = "/home/llamicron/usr/dev/NavasotaBrewing/brewdrivers"
-version = "0.17"
+path = "/home/llamicron/usr/dev/NavasotaBrewing/brewdrivers"
+# version = "0.17"
 # default-features = false
 # optional = true
 

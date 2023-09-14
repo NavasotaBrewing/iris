@@ -9,8 +9,12 @@ use crate::defaults::{default_time_between, halt_events_if_error};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum IncomingEventType {
+    /// Enacts all the devices sent
     DeviceEnact,
+    /// Updates all the devices sent
     DeviceUpdate,
+    /// Requests that the RTU is reset to it's base configuration
+    RTUReset,
 }
 
 /// An incoming websocket event
