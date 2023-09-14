@@ -1,4 +1,4 @@
-use brewdrivers::model::{Device, RTU};
+use brewdrivers::model::Device;
 use log::*;
 use std::time::Duration;
 
